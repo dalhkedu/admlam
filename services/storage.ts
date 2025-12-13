@@ -141,6 +141,8 @@ const MOCK_EVENTS: DistributionEvent[] = [
     endTime: '15:00',
     location: 'Sede do Lar - Salão Principal',
     isFree: true,
+    hasParking: false,
+    isParkingPaid: false,
     frequency: EventFrequency.YEARLY,
     linkedCampaignIds: ['camp-001'],
     status: 'Agendado'
@@ -154,6 +156,8 @@ const MOCK_EVENTS: DistributionEvent[] = [
     endTime: '12:00',
     location: 'Sede do Lar - Pátio',
     isFree: true,
+    hasParking: true,
+    isParkingPaid: false,
     frequency: EventFrequency.MONTHLY,
     linkedCampaignIds: [],
     status: 'Agendado'

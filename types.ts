@@ -115,8 +115,16 @@ export interface DistributionEvent {
   startTime: string;
   endTime: string;
   location: string;
+  
+  // Entrada
   isFree: boolean;
   entryFee?: number;
+
+  // Estacionamento
+  hasParking: boolean;
+  isParkingPaid: boolean;
+  parkingFee?: number;
+
   frequency: EventFrequency;
   linkedCampaignIds: string[];
   status: 'Agendado' | 'Realizado' | 'Cancelado';

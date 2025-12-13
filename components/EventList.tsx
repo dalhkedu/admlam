@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DistributionEvent, EventFrequency, Campaign } from '../types';
-import { Plus, Calendar, MapPin, Clock, DollarSign, Edit2, Trash2, X, Link, Check, Repeat, Copy, Search, Loader2, Filter, AlertTriangle } from 'lucide-react';
+import { Plus, Calendar, MapPin, Clock, DollarSign, Edit2, Trash2, X, Link, Check, Repeat, Copy, Search, Loader2, Filter, AlertTriangle, Car, Ticket } from 'lucide-react';
 
 interface EventListProps {
   events: DistributionEvent[];
@@ -19,6 +19,8 @@ const emptyEvent: DistributionEvent = {
   endTime: '12:00',
   location: '',
   isFree: true,
+  hasParking: false,
+  isParkingPaid: false,
   frequency: EventFrequency.ONCE,
   linkedCampaignIds: [],
   status: 'Agendado'
@@ -317,8 +319,16 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         <span className="truncate">{event.location}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <DollarSign size={16} className="text-emerald-500" />
-                        <span>{event.isFree ? 'Gratuito' : `R$ ${event.entryFee?.toFixed(2)}`}</span>
+                        <Ticket size={16} className="text-emerald-500" />
+                        <span>{event.isFree ? 'Entrada Franca' : `Entrada: R$ ${event.entryFee?.toFixed(2)}`}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Car size={16} className="text-emerald-500" />
+                        <span>
+                            {event.hasParking 
+                                ? (event.isParkingPaid ? `Estacionamento: R$ ${event.parkingFee?.toFixed(2) || '?.??'}` : 'Estacionamento Gratuito') 
+                                : 'Sem Estacionamento'}
+                        </span>
                     </div>
                 </div>
                 
@@ -517,33 +527,81 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                 </div>
               </div>
 
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                  <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-slate-700">Custo do Evento</span>
-                      <label className="flex items-center gap-2 cursor-pointer text-sm">
-                          <input 
-                            type="checkbox"
-                            checked={formData.isFree}
-                            onChange={e => setFormData({...formData, isFree: e.target.checked})}
-                            className="w-4 h-4 text-emerald-600 rounded"
-                          />
-                          Evento Gratuito
-                      </label>
-                  </div>
-                  {!formData.isFree && (
-                      <div className="relative mt-2">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">R$</span>
-                        <input 
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={formData.entryFee || ''}
-                            onChange={e => setFormData({...formData, entryFee: parseFloat(e.target.value)})}
-                            className="w-full pl-8 border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
-                            placeholder="0.00"
-                        />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                             <Ticket size={16}/> Entrada / Ingresso
+                          </span>
+                          <label className="flex items-center gap-2 cursor-pointer text-sm">
+                              <input 
+                                type="checkbox"
+                                checked={formData.isFree}
+                                onChange={e => setFormData({...formData, isFree: e.target.checked})}
+                                className="w-4 h-4 text-emerald-600 rounded"
+                              />
+                              Entrada Franca
+                          </label>
                       </div>
-                  )}
+                      {!formData.isFree && (
+                          <div className="relative mt-2">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">R$</span>
+                            <input 
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={formData.entryFee || ''}
+                                onChange={e => setFormData({...formData, entryFee: parseFloat(e.target.value)})}
+                                className="w-full pl-8 border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
+                                placeholder="0.00"
+                            />
+                          </div>
+                      )}
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                      <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                             <Car size={16}/> Estacionamento
+                          </span>
+                          <label className="flex items-center gap-2 cursor-pointer text-sm">
+                              <input 
+                                type="checkbox"
+                                checked={formData.hasParking}
+                                onChange={e => setFormData({...formData, hasParking: e.target.checked})}
+                                className="w-4 h-4 text-emerald-600 rounded"
+                              />
+                              Possui local?
+                          </label>
+                      </div>
+                      {formData.hasParking && (
+                          <div className="space-y-2 mt-2">
+                             <label className="flex items-center gap-2 cursor-pointer text-sm bg-white p-2 rounded border border-slate-200">
+                                <input 
+                                    type="checkbox"
+                                    checked={!formData.isParkingPaid}
+                                    onChange={e => setFormData({...formData, isParkingPaid: !e.target.checked})}
+                                    className="w-4 h-4 text-emerald-600 rounded"
+                                />
+                                Estacionamento Gratuito
+                             </label>
+                             {formData.isParkingPaid && (
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">R$</span>
+                                    <input 
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={formData.parkingFee || ''}
+                                        onChange={e => setFormData({...formData, parkingFee: parseFloat(e.target.value)})}
+                                        className="w-full pl-8 border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
+                                        placeholder="Valor do Estacionamento"
+                                    />
+                                </div>
+                             )}
+                          </div>
+                      )}
+                  </div>
               </div>
 
               <div className="border-t border-slate-100 pt-4">
