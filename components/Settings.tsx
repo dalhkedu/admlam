@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storage';
 import { OrganizationLocation, LocationType, OrganizationBankInfo, BankAccount, PixKey, OrganizationSettings } from '../types';
-import { Key, Save, AlertTriangle, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark, Star, Copy, Clock } from 'lucide-react';
+import { Save, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark, Star, Clock } from 'lucide-react';
 
 const emptyLocation: OrganizationLocation = {
   id: '',
@@ -25,7 +25,6 @@ const emptyAccount: BankAccount = {
 };
 
 export const Settings: React.FC = () => {
-  const [apiKey, setApiKey] = useState('');
   const [status, setStatus] = useState<'idle' | 'saved' | 'saving'>('idle');
   
   // Organization Settings
@@ -58,7 +57,6 @@ export const Settings: React.FC = () => {
 
   useEffect(() => {
     const loadData = async () => {
-        setApiKey(StorageService.getApiKey());
         setLocations(await StorageService.getLocations());
         setBankInfo(await StorageService.getBankInfo());
         setOrgSettings(await StorageService.getSettings());
@@ -66,11 +64,10 @@ export const Settings: React.FC = () => {
     loadData();
   }, []);
 
-  // API Key Handlers
-  const handleSaveApiKey = async (e: React.FormEvent) => {
+  // Settings Handlers
+  const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus('saving');
-    StorageService.saveApiKey(apiKey);
     await StorageService.saveSettings(orgSettings);
     
     setStatus('saved');
@@ -251,9 +248,9 @@ export const Settings: React.FC = () => {
         <p className="text-slate-500">Gerencie as integrações e dados da organização.</p>
       </div>
 
-      {/* Seção API Key e Configs Gerais */}
+      {/* Seção Configs Gerais */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <form onSubmit={handleSaveApiKey} className="space-y-6">
+        <form onSubmit={handleSaveSettings} className="space-y-6">
             
             {/* Configuração de Validade */}
             <div>
@@ -280,41 +277,6 @@ export const Settings: React.FC = () => {
                         className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-center text-slate-900 bg-white"
                     />
                     <span className="text-sm text-slate-600">meses</span>
-                </div>
-            </div>
-
-            <hr className="border-slate-100" />
-
-            {/* Configuração IA */}
-            <div>
-                 <div className="flex items-start gap-4 mb-4">
-                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
-                        <Key size={24} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-800">Integração com IA</h3>
-                        <p className="text-sm text-slate-500 mt-1">
-                        Chave de API do Google Gemini para recursos inteligentes.
-                        </p>
-                    </div>
-                </div>
-                
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex gap-3">
-                    <AlertTriangle className="text-amber-600 shrink-0" size={16} />
-                    <div className="text-xs text-amber-800">
-                         Obtenha sua chave em <a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" className="underline font-semibold hover:text-amber-900">Google AI Studio</a>.
-                    </div>
-                </div>
-
-                <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700">API Key</label>
-                    <input 
-                    type="password"
-                    placeholder="Cole sua chave API aqui..."
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-sm text-slate-900 bg-white"
-                    />
                 </div>
             </div>
 

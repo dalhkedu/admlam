@@ -1,23 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CampaignType, CampaignItem, PackageItem, Family } from "../types";
-import { StorageService } from "./storage";
 
-const getAI = () => {
-    const apiKey = StorageService.getApiKey() || process.env.API_KEY;
-    if (!apiKey) return null;
-    return new GoogleGenAI({ apiKey });
-};
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateCampaignDescription = async (
   title: string,
   type: CampaignType,
   items: CampaignItem[]
 ): Promise<string> => {
-  const ai = getAI();
-  if (!ai) {
-    return "⚠️ Configure a Chave API nas Configurações para usar a IA.";
-  }
-
   const itemList = items.map(i => `${i.targetQuantity} ${i.unit} de ${i.name}`).join(', ');
 
   const prompt = `
@@ -41,16 +31,11 @@ export const generateCampaignDescription = async (
     return response.text || "Não foi possível gerar a descrição.";
   } catch (error) {
     console.error("Error generating description:", error);
-    return "Erro ao conectar com a IA para gerar descrição. Verifique sua chave API.";
+    return "Erro ao conectar com a IA para gerar descrição.";
   }
 };
 
 export const suggestPackageItems = async (packageName: string, description: string): Promise<PackageItem[]> => {
-    const ai = getAI();
-    if (!ai) {
-        throw new Error("API Key ausente");
-    }
-
     const prompt = `
       Crie uma lista de itens para uma cesta de doação ou pacote da ONG.
       Nome do Pacote: ${packageName}
@@ -104,11 +89,6 @@ export const suggestPackageItems = async (packageName: string, description: stri
 };
 
 export const parseFamilyData = async (rawText: string): Promise<Partial<Family>> => {
-    const ai = getAI();
-    if (!ai) {
-         throw new Error("API Key ausente");
-    }
-
     const prompt = `
       Analise o texto abaixo e extraia os dados de uma família para cadastro na ONG (Lar Assistencial Matilde).
       
