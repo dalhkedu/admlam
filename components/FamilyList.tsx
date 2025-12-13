@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Family, Child, ClothingSize } from '../types';
 import { parseFamilyData } from '../services/geminiService';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, User, X, Users as UsersIcon, Wand2, Loader2, Sparkles, Search, MapPin } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, User, X, Users as UsersIcon, Wand2, Loader2, Sparkles, Search, MapPin, Baby } from 'lucide-react';
 
 interface FamilyListProps {
   families: Family[];
@@ -27,7 +27,9 @@ const emptyFamily: Family = {
   numberOfAdults: 1,
   status: 'Ativo',
   children: [],
-  registrationDate: ''
+  registrationDate: '',
+  isPregnant: false,
+  pregnancyDueDate: ''
 };
 
 export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, onUpdateFamily, onDeleteFamily }) => {
@@ -165,6 +167,8 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
               address: result.address || '',
               phone: result.phone || '',
               numberOfAdults: result.numberOfAdults || 1,
+              isPregnant: result.isPregnant || false,
+              pregnancyDueDate: result.pregnancyDueDate || '',
               children: (result.children || []).map((c: any) => ({
                   ...emptyChild,
                   id: crypto.randomUUID(),
@@ -246,7 +250,14 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
               <React.Fragment key={family.id}>
                 <tr className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
-                    <div className="font-medium text-slate-800">{family.responsibleName}</div>
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium text-slate-800">{family.responsibleName}</span>
+                        {family.isPregnant && (
+                            <span className="inline-flex items-center justify-center p-1 rounded-full bg-pink-100 text-pink-600" title="Gestante na família">
+                                <Baby size={14} />
+                            </span>
+                        )}
+                    </div>
                     <div className="text-xs text-slate-500 md:hidden">{family.address}</div>
                   </td>
                   <td className="px-6 py-4 hidden md:table-cell text-slate-600 text-sm">{family.address}</td>
@@ -294,6 +305,24 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                           <span className="mx-2">•</span>
                           <span className="font-medium">Cadastro:</span> {new Date(family.registrationDate).toLocaleDateString()}
                         </div>
+
+                        {family.isPregnant && (
+                            <div className="bg-pink-50 border border-pink-100 p-3 rounded-lg flex items-center gap-3 mb-2">
+                                <div className="p-2 bg-pink-100 rounded-full text-pink-500">
+                                    <Baby size={20} />
+                                </div>
+                                <div>
+                                    <div className="text-sm font-bold text-pink-700">Gestante na Família</div>
+                                    <div className="text-xs text-pink-600">
+                                        {family.pregnancyDueDate 
+                                          ? `Previsão do parto: ${new Date(family.pregnancyDueDate).toLocaleDateString()}` 
+                                          : 'Data prevista do parto não informada.'
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                           {family.children.map(child => (
                             <div key={child.id} className="bg-white p-3 rounded border border-slate-200 text-sm shadow-sm">
@@ -348,7 +377,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                  value={aiInputText}
                  onChange={e => setAiInputText(e.target.value)}
                  className="w-full h-32 border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
-                 placeholder="Ex: Maria Souza, mora na Rua das Rosas 10, tel 9999-1234. Tem 3 filhos: João de 8 anos, Pedro de 5 e Ana de 12."
+                 placeholder="Ex: Maria Souza, mora na Rua das Rosas 10, tel 9999-1234. Está grávida de 6 meses. Tem 3 filhos: João de 8 anos..."
                />
                <div className="flex justify-end gap-3">
                  <button 
@@ -520,6 +549,41 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                     value={formData.registrationDate ? new Date(formData.registrationDate).toLocaleDateString() : 'Hoje'}
                     className="w-full border border-slate-200 bg-slate-100 text-slate-500 rounded-lg px-3 py-2 outline-none cursor-not-allowed"
                   />
+                </div>
+              </div>
+              
+              {/* Seção de Gestante */}
+              <div className="bg-pink-50 p-4 rounded-lg border border-pink-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-pink-100 rounded-full text-pink-600">
+                        <Baby size={20} />
+                    </div>
+                    <div>
+                        <span className="font-semibold text-slate-700 block text-sm">Gestante na Família</span>
+                        <span className="text-xs text-slate-500">Há alguém grávida nesta família?</span>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={formData.isPregnant || false}
+                            onChange={e => setFormData({...formData, isPregnant: e.target.checked})}
+                            className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
+                        />
+                        <span className="text-sm font-medium text-slate-700">Sim</span>
+                    </label>
+                    {formData.isPregnant && (
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Previsão Parto</label>
+                            <input
+                                type="date"
+                                value={formData.pregnancyDueDate || ''}
+                                onChange={e => setFormData({...formData, pregnancyDueDate: e.target.value})}
+                                className="border border-pink-200 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-pink-500 text-slate-700"
+                            />
+                        </div>
+                    )}
                 </div>
               </div>
 

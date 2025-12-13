@@ -10,6 +10,8 @@ const MOCK_FAMILIES: Family[] = [
     numberOfAdults: 2,
     status: 'Ativo',
     registrationDate: new Date('2023-01-15').toISOString(),
+    isPregnant: true,
+    pregnancyDueDate: '2025-02-15',
     children: [
       { id: 'ch-1', name: 'Joãozinho', age: 8, gender: 'M', clothingSize: ClothingSize.INFANTIL_8, shoeSize: 32, notes: 'Gosta de futebol' },
       { id: 'ch-2', name: 'Ana', age: 5, gender: 'F', clothingSize: ClothingSize.INFANTIL_6, shoeSize: 28, notes: 'Gosta de bonecas' }
@@ -23,6 +25,7 @@ const MOCK_FAMILIES: Family[] = [
     numberOfAdults: 1,
     status: 'Ativo',
     registrationDate: new Date('2023-03-10').toISOString(),
+    isPregnant: false,
     children: [
       { id: 'ch-3', name: 'Pedro', age: 12, gender: 'M', clothingSize: ClothingSize.INFANTIL_14, shoeSize: 36 }
     ]
@@ -35,17 +38,17 @@ const MOCK_PACKAGES: Package[] = [
     name: 'Cesta Básica de Alimentos',
     description: 'Itens essenciais de alimentação para subsistência mensal.',
     items: [
-      { id: 'pi-1', name: 'Arroz', quantity: 5, unit: 'kg' },
-      { id: 'pi-2', name: 'Feijão', quantity: 1, unit: 'kg' },
-      { id: 'pi-3', name: 'Macarrão', quantity: 1, unit: 'un' }, // Ajustado para un/pacote pois 500g não é kg inteiro
-      { id: 'pi-4', name: 'Óleo de Soja', quantity: 1, unit: 'lt' },
-      { id: 'pi-5', name: 'Açúcar', quantity: 1, unit: 'kg' },
-      { id: 'pi-6', name: 'Café', quantity: 1, unit: 'un' }, // 500g pacote
-      { id: 'pi-7', name: 'Farinha de Trigo', quantity: 1, unit: 'kg' },
-      { id: 'pi-8', name: 'Leite em Pó', quantity: 1, unit: 'un' }, // Lata/Pacote
-      { id: 'pi-9', name: 'Sardinha em Lata', quantity: 1, unit: 'un' },
-      { id: 'pi-10', name: 'Sal', quantity: 1, unit: 'kg' },
-      { id: 'pi-11', name: 'Margarina', quantity: 1, unit: 'un' } // 250g pote
+      { id: 'pi-1', name: 'Arroz', quantity: 5, unit: 'kg', averagePrice: 28.50 },
+      { id: 'pi-2', name: 'Feijão', quantity: 1, unit: 'kg', averagePrice: 8.90 },
+      { id: 'pi-3', name: 'Macarrão', quantity: 1, unit: 'un', averagePrice: 4.50 }, 
+      { id: 'pi-4', name: 'Óleo de Soja', quantity: 1, unit: 'lt', averagePrice: 6.80 },
+      { id: 'pi-5', name: 'Açúcar', quantity: 1, unit: 'kg', averagePrice: 4.20 },
+      { id: 'pi-6', name: 'Café', quantity: 1, unit: 'un', averagePrice: 15.00 },
+      { id: 'pi-7', name: 'Farinha de Trigo', quantity: 1, unit: 'kg', averagePrice: 5.50 },
+      { id: 'pi-8', name: 'Leite em Pó', quantity: 1, unit: 'un', averagePrice: 18.90 },
+      { id: 'pi-9', name: 'Sardinha em Lata', quantity: 1, unit: 'un', averagePrice: 5.00 },
+      { id: 'pi-10', name: 'Sal', quantity: 1, unit: 'kg', averagePrice: 2.00 },
+      { id: 'pi-11', name: 'Margarina', quantity: 1, unit: 'un', averagePrice: 6.50 } 
     ]
   },
   {
@@ -53,11 +56,11 @@ const MOCK_PACKAGES: Package[] = [
     name: 'Kit Higiene Pessoal',
     description: 'Produtos básicos de higiene e limpeza.',
     items: [
-      { id: 'pi-12', name: 'Sabão em Barra', quantity: 1, unit: 'un' },
-      { id: 'pi-13', name: 'Detergente', quantity: 1, unit: 'un' },
-      { id: 'pi-14', name: 'Papel Higiênico (Pct 4)', quantity: 1, unit: 'un' },
-      { id: 'pi-15', name: 'Creme Dental', quantity: 1, unit: 'un' },
-      { id: 'pi-16', name: 'Sabonete', quantity: 2, unit: 'un' }
+      { id: 'pi-12', name: 'Sabão em Barra', quantity: 1, unit: 'un', averagePrice: 3.50 },
+      { id: 'pi-13', name: 'Detergente', quantity: 1, unit: 'un', averagePrice: 2.50 },
+      { id: 'pi-14', name: 'Papel Higiênico (Pct 4)', quantity: 1, unit: 'un', averagePrice: 6.00 },
+      { id: 'pi-15', name: 'Creme Dental', quantity: 1, unit: 'un', averagePrice: 4.00 },
+      { id: 'pi-16', name: 'Sabonete', quantity: 2, unit: 'un', averagePrice: 2.50 }
     ]
   }
 ];
@@ -72,11 +75,11 @@ const MOCK_CAMPAIGNS: Campaign[] = [
     endDate: new Date('2024-12-20').toISOString(),
     isActive: true,
     items: [
-      { id: 'it-1', name: 'Brinquedos', targetQuantity: 3, collectedQuantity: 1, unit: 'un' }, // Calculado manual no mock
-      { id: 'it-2', name: 'Panetones', targetQuantity: 2, collectedQuantity: 0, unit: 'un' }
+      { id: 'it-1', name: 'Brinquedos', targetQuantity: 3, collectedQuantity: 1, unit: 'un', averagePrice: 40.00 },
+      { id: 'it-2', name: 'Panetones', targetQuantity: 2, collectedQuantity: 0, unit: 'un', averagePrice: 15.00 }
     ],
     beneficiaryFamilyIds: ['fam-001', 'fam-002'],
-    packageIds: [] // Campanha antiga ou personalizada sem pacote
+    packageIds: [] 
   }
 ];
 

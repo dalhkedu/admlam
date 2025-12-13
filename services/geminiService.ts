@@ -60,8 +60,9 @@ export const suggestPackageItems = async (packageName: string, description: stri
       - name (string)
       - quantity (number, pode ser float)
       - unit (string: 'un', 'kg', 'lt', 'pc')
+      - averagePrice (number): Estime o preço médio de mercado desse item no Brasil em Reais (BRL), considere o custo da unidade/kg especificado. Ex: Se for 5kg de Arroz, o preço deve ser o pacote de 5kg (~30.00).
       
-      Exemplo de itens: Arroz 5kg, Leite 2un, Sabonete 1un.
+      Exemplo de itens: Arroz 5kg (R$ 28.00), Leite 2un (R$ 8.00), Sabonete 1un (R$ 2.50).
     `;
 
     try {
@@ -77,9 +78,10 @@ export const suggestPackageItems = async (packageName: string, description: stri
                         properties: {
                             name: { type: Type.STRING },
                             quantity: { type: Type.NUMBER },
-                            unit: { type: Type.STRING, enum: ['un', 'kg', 'lt', 'pc'] }
+                            unit: { type: Type.STRING, enum: ['un', 'kg', 'lt', 'pc'] },
+                            averagePrice: { type: Type.NUMBER, description: "Average price in BRL" }
                         },
-                        required: ['name', 'quantity', 'unit']
+                        required: ['name', 'quantity', 'unit', 'averagePrice']
                     }
                 }
             }
@@ -117,6 +119,8 @@ export const parseFamilyData = async (rawText: string): Promise<Partial<Family>>
       - address (string)
       - phone (string)
       - numberOfAdults (number)
+      - isPregnant (boolean): Identifique se o texto menciona alguém grávida/gestante na família.
+      - pregnancyDueDate (string YYYY-MM-DD): Se houver menção de data de parto ou meses de gestação, tente estimar a data (considere a data atual como base). Se não, deixe null.
       - children (array de objetos):
          - name (string)
          - age (number)

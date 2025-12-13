@@ -34,6 +34,8 @@ export interface Family {
   status: 'Ativo' | 'Inativo';
   children: Child[];
   registrationDate: string; // ISO String
+  isPregnant?: boolean; // Se há gestante na família
+  pregnancyDueDate?: string; // Data prevista do parto (YYYY-MM-DD)
 }
 
 export enum CampaignType {
@@ -50,6 +52,7 @@ export interface CampaignItem {
   targetQuantity: number;
   collectedQuantity: number;
   unit: 'kg' | 'un' | 'lt' | 'pc';
+  averagePrice?: number; // Preço médio estimado unitário
 }
 
 // Novos tipos para Pacotes
@@ -58,6 +61,7 @@ export interface PackageItem {
   name: string;
   quantity: number;
   unit: 'kg' | 'un' | 'lt' | 'pc';
+  averagePrice?: number; // Preço médio estimado unitário
 }
 
 export interface Package {

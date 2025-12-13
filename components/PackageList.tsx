@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Package, PackageItem } from '../types';
 import { suggestPackageItems } from '../services/geminiService';
-import { Plus, Trash2, Box, X, Edit2, Wand2, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Box, X, Edit2, Wand2, Loader2, DollarSign } from 'lucide-react';
 
 interface PackageListProps {
   packages: Package[];
@@ -31,7 +31,7 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
       setFormData({
         ...emptyPackage,
         id: crypto.randomUUID(),
-        items: [{ id: crypto.randomUUID(), name: '', quantity: 1, unit: 'un' }]
+        items: [{ id: crypto.randomUUID(), name: '', quantity: 1, unit: 'un', averagePrice: 0 }]
       });
       setEditingId(null);
     }
@@ -41,7 +41,7 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
   const addItem = () => {
     setFormData(prev => ({
       ...prev,
-      items: [...prev.items, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'un' }]
+      items: [...prev.items, { id: crypto.randomUUID(), name: '', quantity: 1, unit: 'un', averagePrice: 0 }]
     }));
   };
 
@@ -54,6 +54,10 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
     newItems[index] = { ...newItems[index], [field]: value };
     setFormData(prev => ({ ...prev, items: newItems }));
   };
+
+  const calculateTotalCost = (items: PackageItem[]) => {
+      return items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.averagePrice || 0)), 0);
+  }
 
   const handleSuggestItems = async () => {
       if(!formData.name || !formData.description) {
@@ -92,7 +96,7 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
       <div className="flex justify-between items-center">
         <div>
            <h1 className="text-2xl font-bold text-slate-800">Pacotes e Cestas</h1>
-           <p className="text-slate-500">Defina os itens padrões para cada tipo de cesta (ex: Cesta de Alimentos, Higiene).</p>
+           <p className="text-slate-500">Defina os itens padrões e seus custos estimados.</p>
         </div>
         <button 
           onClick={() => handleOpenModal()}
@@ -104,47 +108,59 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {packages.map(pkg => (
-          <div key={pkg.id} className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col">
-            <div className="p-5 flex-1">
-              <div className="flex justify-between items-start mb-2">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                   <Box size={24} />
+        {packages.map(pkg => {
+          const totalCost = calculateTotalCost(pkg.items);
+          return (
+            <div key={pkg.id} className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col">
+              <div className="p-5 flex-1">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                     <Box size={24} />
+                  </div>
+                  <div className="flex gap-2">
+                     <button onClick={() => handleOpenModal(pkg)} className="text-slate-400 hover:text-blue-600">
+                       <Edit2 size={18} />
+                     </button>
+                     <button onClick={() => onDeletePackage(pkg.id)} className="text-slate-400 hover:text-red-500">
+                       <Trash2 size={18} />
+                     </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                   <button onClick={() => handleOpenModal(pkg)} className="text-slate-400 hover:text-blue-600">
-                     <Edit2 size={18} />
-                   </button>
-                   <button onClick={() => onDeletePackage(pkg.id)} className="text-slate-400 hover:text-red-500">
-                     <Trash2 size={18} />
-                   </button>
+                <h3 className="text-lg font-bold text-slate-800">{pkg.name}</h3>
+                <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{pkg.description}</p>
+                
+                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                  <h4 className="text-xs font-semibold text-slate-600 uppercase mb-2">Itens por Família</h4>
+                  <ul className="space-y-1">
+                    {pkg.items.slice(0, 5).map(item => (
+                      <li key={item.id} className="text-sm text-slate-700 flex justify-between">
+                        <span>{item.name}</span>
+                        <div className="flex gap-3">
+                            <span className="text-slate-500">{item.quantity} {item.unit}</span>
+                            <span className="text-emerald-600 font-medium">
+                                {(item.quantity * (item.averagePrice || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                        </div>
+                      </li>
+                    ))}
+                    {pkg.items.length > 5 && (
+                      <li className="text-xs text-indigo-600 font-medium pt-1">
+                        + {pkg.items.length - 5} outros itens...
+                      </li>
+                    )}
+                  </ul>
                 </div>
               </div>
-              <h3 className="text-lg font-bold text-slate-800">{pkg.name}</h3>
-              <p className="text-sm text-slate-500 mb-4 h-10 line-clamp-2">{pkg.description}</p>
-              
-              <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                <h4 className="text-xs font-semibold text-slate-600 uppercase mb-2">Itens por Família</h4>
-                <ul className="space-y-1">
-                  {pkg.items.slice(0, 5).map(item => (
-                    <li key={item.id} className="text-sm text-slate-700 flex justify-between">
-                      <span>{item.name}</span>
-                      <span className="font-medium text-slate-500">{item.quantity} {item.unit}</span>
-                    </li>
-                  ))}
-                  {pkg.items.length > 5 && (
-                    <li className="text-xs text-indigo-600 font-medium pt-1">
-                      + {pkg.items.length - 5} outros itens...
-                    </li>
-                  )}
-                </ul>
+              <div className="p-4 bg-slate-50 border-t border-slate-100 rounded-b-xl flex justify-between items-center">
+                 <span className="text-xs text-slate-500">{pkg.items.length} itens</span>
+                 <div className="text-lg font-bold text-slate-800 flex items-center gap-1">
+                    <span className="text-xs font-normal text-slate-500">Total Est.:</span>
+                    {totalCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                 </div>
               </div>
             </div>
-            <div className="p-3 bg-slate-50 border-t border-slate-100 rounded-b-xl text-xs text-slate-500 text-center">
-               {pkg.items.length} itens totais
-            </div>
-          </div>
-        ))}
+          );
+        })}
         
         {packages.length === 0 && (
           <div className="col-span-full py-12 text-center bg-white rounded-xl border border-slate-200 border-dashed">
@@ -159,7 +175,7 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
       {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
              <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
               <h2 className="text-xl font-bold text-slate-800">{editingId ? 'Editar Pacote' : 'Novo Pacote'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
@@ -193,7 +209,7 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
 
               <div className="border-t border-slate-100 pt-4">
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-semibold text-slate-700">Itens do Pacote</h3>
+                  <h3 className="font-semibold text-slate-700">Itens e Custos</h3>
                   <div className="flex gap-2">
                       <button 
                         type="button" 
@@ -202,7 +218,7 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
                         className="text-xs bg-purple-100 text-purple-700 px-3 py-1.5 rounded flex items-center gap-1 hover:bg-purple-200 transition-colors disabled:opacity-50"
                       >
                          {isSuggesting ? <Loader2 size={14} className="animate-spin"/> : <Wand2 size={14}/>}
-                         Sugerir Itens com IA
+                         Sugerir Itens + Preços
                       </button>
                       <button type="button" onClick={addItem} className="text-sm text-emerald-600 font-medium hover:underline flex items-center gap-1">
                         <Plus size={14} /> Adicionar Item
@@ -211,47 +227,81 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
                 </div>
                 
                 <div className="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                  <div className="grid grid-cols-12 gap-2 mb-2 text-xs font-medium text-slate-500 px-2">
+                     <div className="col-span-5">Item</div>
+                     <div className="col-span-2">Qtd</div>
+                     <div className="col-span-2">Unid.</div>
+                     <div className="col-span-2">Preço Un. (R$)</div>
+                     <div className="col-span-1"></div>
+                  </div>
                   {formData.items.map((item, index) => (
-                    <div key={item.id} className="flex gap-2 items-center">
-                      <input 
-                        placeholder="Nome do Item"
-                        required
-                        className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm"
-                        value={item.name}
-                        onChange={e => updateItem(index, 'name', e.target.value)}
-                      />
-                      <input 
-                        type="number"
-                        placeholder="Qtd"
-                        required
-                        min="0.1"
-                        step="0.1"
-                        className="w-24 border border-slate-300 rounded px-3 py-2 text-sm"
-                        value={item.quantity || ''}
-                        onChange={e => updateItem(index, 'quantity', e.target.value ? parseFloat(e.target.value) : 0)}
-                      />
-                       <select
-                        className="w-24 border border-slate-300 rounded px-2 py-2 text-sm bg-white text-slate-700"
-                        value={item.unit}
-                        onChange={e => updateItem(index, 'unit', e.target.value)}
-                       >
-                         <option value="un">un</option>
-                         <option value="kg">kg</option>
-                         <option value="lt">lt</option>
-                         <option value="pc">pc</option>
-                       </select>
-                       <button 
-                        type="button"
-                        onClick={() => removeItem(item.id)}
-                        className="text-slate-400 hover:text-red-500 p-2"
-                       >
-                         <Trash2 size={16} />
-                       </button>
+                    <div key={item.id} className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-5">
+                          <input 
+                            placeholder="Nome"
+                            required
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+                            value={item.name}
+                            onChange={e => updateItem(index, 'name', e.target.value)}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <input 
+                            type="number"
+                            placeholder="Qtd"
+                            required
+                            min="0.1"
+                            step="0.1"
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+                            value={item.quantity || ''}
+                            onChange={e => updateItem(index, 'quantity', e.target.value ? parseFloat(e.target.value) : 0)}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                         <select
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm bg-white text-slate-700"
+                            value={item.unit}
+                            onChange={e => updateItem(index, 'unit', e.target.value)}
+                        >
+                            <option value="un">un</option>
+                            <option value="kg">kg</option>
+                            <option value="lt">lt</option>
+                            <option value="pc">pc</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2 relative">
+                         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">R$</span>
+                         <input 
+                            type="number"
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            className="w-full border border-slate-300 rounded pl-6 pr-2 py-1.5 text-sm"
+                            value={item.averagePrice || ''}
+                            onChange={e => updateItem(index, 'averagePrice', e.target.value ? parseFloat(e.target.value) : 0)}
+                         />
+                      </div>
+                      <div className="col-span-1 flex justify-center">
+                         <button 
+                            type="button"
+                            onClick={() => removeItem(item.id)}
+                            className="text-slate-400 hover:text-red-500 p-1"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   ))}
                   {formData.items.length === 0 && (
                     <p className="text-center text-sm text-slate-400 italic">Adicione itens para compor este pacote.</p>
                   )}
+                </div>
+
+                <div className="mt-4 flex justify-end items-center gap-2">
+                    <span className="text-sm font-medium text-slate-600">Total Estimado do Pacote:</span>
+                    <span className="text-xl font-bold text-emerald-700">
+                        {calculateTotalCost(formData.items).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </span>
                 </div>
               </div>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Campaign, CampaignItem, CampaignType, Family, Package } from '../types';
 import { generateCampaignDescription } from '../services/geminiService';
-import { Plus, Gift, Check, Play, Square, Wand2, Loader2, Trash2, Copy, Filter, Lock, Users, FileText, X, Calendar, Edit2, Box } from 'lucide-react';
+import { Plus, Gift, Check, Play, Square, Wand2, Loader2, Trash2, Copy, Filter, Lock, Users, FileText, X, Calendar, Edit2, Box, DollarSign } from 'lucide-react';
 
 interface CampaignListProps {
   campaigns: Campaign[];
@@ -64,7 +64,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
     }
 
     // Mapa para agregar itens de pacotes diferentes (ex: dois pacotes tem arroz)
-    const itemsMap = new Map<string, {name: string, unit: string, qty: number}>();
+    const itemsMap = new Map<string, {name: string, unit: string, qty: number, price: number}>();
 
     // Itera sobre os pacotes selecionados
     formData.packageIds.forEach(pkgId => {
@@ -73,10 +73,11 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
         pkg.items.forEach(pkgItem => {
           // Chave única composta por nome e unidade para evitar duplicatas erradas
           const key = `${pkgItem.name}-${pkgItem.unit}`;
-          const current = itemsMap.get(key) || { name: pkgItem.name, unit: pkgItem.unit, qty: 0 };
+          const current = itemsMap.get(key) || { name: pkgItem.name, unit: pkgItem.unit, qty: 0, price: pkgItem.averagePrice || 0 };
           
           // Quantidade total = Qtd no pacote * Qtd Famílias
           current.qty += (pkgItem.quantity * familyCount);
+          // O preço é mantido do pacote (último pacote sobrescreve em caso de conflito, simplificação aceitável)
           itemsMap.set(key, current);
         });
       }
@@ -95,13 +96,18 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
             name: val.name,
             unit: val.unit as any,
             targetQuantity: val.qty,
-            collectedQuantity: existingItem ? existingItem.collectedQuantity : 0
+            collectedQuantity: existingItem ? existingItem.collectedQuantity : 0,
+            averagePrice: val.price
           });
        });
 
        return { ...prev, items: newItems };
     });
   };
+
+  const calculateTotalCampaignCost = (campaignItems: CampaignItem[]) => {
+      return campaignItems.reduce((acc, item) => acc + (item.targetQuantity * (item.averagePrice || 0)), 0);
+  }
 
   const handleOpenModal = () => {
     const today = getTodayDate();
@@ -336,6 +342,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
             const today = getTodayDate();
             const isExpired = campaign.endDate < today;
             const beneficiaryCount = (campaign.beneficiaryFamilyIds || []).length;
+            const totalCost = calculateTotalCampaignCost(campaign.items);
 
             return (
               <div key={campaign.id} className="bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col h-full">
@@ -354,9 +361,15 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                   <h3 className="text-lg font-bold text-slate-800 mb-2">{campaign.title}</h3>
                   <p className="text-sm text-slate-500 mb-4 line-clamp-3">{campaign.description}</p>
                   
-                  <div className="mb-4 flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded border border-slate-100">
-                     <Users size={16} className="text-emerald-600"/>
-                     <span><strong>{beneficiaryCount}</strong> famílias vinculadas</span>
+                  <div className="flex justify-between gap-2 mb-4">
+                     <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 flex-1">
+                        <Users size={16} className="text-emerald-600"/>
+                        <span><strong>{beneficiaryCount}</strong> famílias</span>
+                     </div>
+                     <div className="flex items-center gap-2 text-sm text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 flex-1">
+                        <DollarSign size={16} className="text-emerald-600"/>
+                        <span><strong>{totalCost.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}</strong> meta</span>
+                     </div>
                   </div>
 
                   <div className="space-y-3">
@@ -597,13 +610,23 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
 
               {/* LISTA DE ITENS CALCULADOS (READ ONLY) */}
               <div className="border-t border-slate-100 pt-4">
-                 <h3 className="font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                   <Box size={16} className="text-slate-400"/> 
-                   Resumo de Itens Necessários
-                 </h3>
-                 <p className="text-xs text-slate-500 mb-3">
-                   Calculado automaticamente: (Itens dos Pacotes) x (Famílias Selecionadas)
-                 </p>
+                 <div className="flex justify-between items-end mb-2">
+                     <div>
+                        <h3 className="font-semibold text-slate-700 flex items-center gap-2">
+                        <Box size={16} className="text-slate-400"/> 
+                        Resumo de Itens Necessários
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                        Calculado automaticamente: (Itens) x (Famílias)
+                        </p>
+                     </div>
+                     <div className="text-right">
+                         <div className="text-xs text-slate-500">Custo Total Previsto</div>
+                         <div className="font-bold text-lg text-emerald-700">
+                            {calculateTotalCampaignCost(formData.items).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                         </div>
+                     </div>
+                 </div>
                  
                  <div className="bg-slate-50 rounded-lg border border-slate-200 p-3 max-h-48 overflow-y-auto">
                     {formData.items.length > 0 ? (
@@ -611,9 +634,16 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                         {formData.items.map(item => (
                           <li key={item.id} className="flex justify-between text-sm">
                             <span className="text-slate-700">{item.name}</span>
-                            <span className="font-medium text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
-                              {item.targetQuantity} {item.unit}
-                            </span>
+                            <div className="flex gap-3">
+                                <span className="font-medium text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                {item.targetQuantity} {item.unit}
+                                </span>
+                                {item.averagePrice && item.averagePrice > 0 && (
+                                    <span className="text-slate-500 text-xs flex items-center">
+                                        ~{(item.targetQuantity * item.averagePrice).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </span>
+                                )}
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -667,17 +697,17 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                     </div>
                     <div className="text-sm text-blue-600 font-medium">Famílias Vinculadas</div>
                  </div>
-                 <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 text-center">
-                    <div className="text-2xl font-bold text-indigo-700">
-                      {selectedCampaignForDetails.packageIds?.length || 0}
-                    </div>
-                    <div className="text-sm text-indigo-600 font-medium">Tipos de Pacotes</div>
-                 </div>
                  <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 text-center">
                     <div className="text-2xl font-bold text-emerald-700">
+                      {calculateTotalCampaignCost(selectedCampaignForDetails.items).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+                    </div>
+                    <div className="text-sm text-emerald-600 font-medium">Custo Estimado</div>
+                 </div>
+                 <div className="bg-purple-50 p-4 rounded-lg border border-purple-100 text-center">
+                    <div className="text-2xl font-bold text-purple-700">
                       {selectedCampaignForDetails.items.length}
                     </div>
-                    <div className="text-sm text-emerald-600 font-medium">Itens Totais</div>
+                    <div className="text-sm text-purple-600 font-medium">Itens Totais</div>
                  </div>
               </div>
 
@@ -720,6 +750,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                          <th className="px-4 py-3 font-medium text-slate-600">Item</th>
                          <th className="px-4 py-3 font-medium text-slate-600">Meta</th>
                          <th className="px-4 py-3 font-medium text-slate-600">Coletado</th>
+                         <th className="px-4 py-3 font-medium text-slate-600">Custo Total Est.</th>
                          <th className="px-4 py-3 font-medium text-slate-600">Status</th>
                        </tr>
                     </thead>
@@ -731,6 +762,9 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                             <td className="px-4 py-3 font-medium text-slate-800">{item.name}</td>
                             <td className="px-4 py-3 text-slate-600">{item.targetQuantity} {item.unit}</td>
                             <td className="px-4 py-3 text-slate-600">{item.collectedQuantity} {item.unit}</td>
+                            <td className="px-4 py-3 text-slate-600">
+                                {(item.targetQuantity * (item.averagePrice || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </td>
                             <td className="px-4 py-3">
                                <span className={`px-2 py-1 rounded-full text-xs font-bold ${isComplete ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
                                  {isComplete ? 'Completo' : 'Pendente'}
