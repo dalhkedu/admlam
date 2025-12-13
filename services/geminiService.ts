@@ -1,29 +1,44 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CampaignType, CampaignItem, PackageItem, Family } from "../types";
+import { StorageService } from "./storage";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper para inicializar a IA dinamicamente
+const getAIClient = async () => {
+  // 1. Tenta buscar das configurações do banco (Firestore)
+  const settings = await StorageService.getSettings();
+  
+  // 2. Usa a chave do banco OU a variável de ambiente como fallback
+  const apiKey = settings.googleApiKey || process.env.API_KEY;
+
+  if (!apiKey) {
+    throw new Error("Chave da API Google Gemini não configurada. Vá em Configurações para adicionar.");
+  }
+
+  return new GoogleGenAI({ apiKey });
+};
 
 export const generateCampaignDescription = async (
   title: string,
   type: CampaignType,
   items: CampaignItem[]
 ): Promise<string> => {
-  const itemList = items.map(i => `${i.targetQuantity} ${i.unit} de ${i.name}`).join(', ');
-
-  const prompt = `
-    Você é um assistente de uma ONG chamada "Lar Assistencial Matilde".
-    Crie uma descrição curta, inspiradora e apelativa para doadores para uma campanha de doação.
-    
-    Detalhes da campanha:
-    Título: ${title}
-    Tipo: ${type}
-    Itens necessários: ${itemList}
-    
-    A descrição deve ter no máximo 3 parágrafos curtos e enfatizar como essa ajuda fará a diferença na vida das famílias e crianças carentes.
-    Use emojis moderadamente.
-  `;
-
   try {
+    const ai = await getAIClient();
+    const itemList = items.map(i => `${i.targetQuantity} ${i.unit} de ${i.name}`).join(', ');
+
+    const prompt = `
+      Você é um assistente de uma ONG chamada "Lar Assistencial Matilde".
+      Crie uma descrição curta, inspiradora e apelativa para doadores para uma campanha de doação.
+      
+      Detalhes da campanha:
+      Título: ${title}
+      Tipo: ${type}
+      Itens necessários: ${itemList}
+      
+      A descrição deve ter no máximo 3 parágrafos curtos e enfatizar como essa ajuda fará a diferença na vida das famílias e crianças carentes.
+      Use emojis moderadamente.
+    `;
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -31,26 +46,27 @@ export const generateCampaignDescription = async (
     return response.text || "Não foi possível gerar a descrição.";
   } catch (error) {
     console.error("Error generating description:", error);
-    return "Erro ao conectar com a IA para gerar descrição.";
+    return "Erro ao conectar com a IA. Verifique a Chave de API nas Configurações.";
   }
 };
 
 export const suggestPackageItems = async (packageName: string, description: string): Promise<PackageItem[]> => {
-    const prompt = `
-      Crie uma lista de itens para uma cesta de doação ou pacote da ONG.
-      Nome do Pacote: ${packageName}
-      Descrição: ${description}
-
-      Retorne APENAS um JSON array. Cada objeto deve ter:
-      - name (string)
-      - quantity (number, pode ser float)
-      - unit (string: 'un', 'kg', 'lt', 'pc')
-      - averagePrice (number): Estime o preço médio de mercado desse item no Brasil em Reais (BRL), considere o custo da unidade/kg especificado. Ex: Se for 5kg de Arroz, o preço deve ser o pacote de 5kg (~30.00).
-      
-      Exemplo de itens: Arroz 5kg (R$ 28.00), Leite 2un (R$ 8.00), Sabonete 1un (R$ 2.50).
-    `;
-
     try {
+        const ai = await getAIClient();
+        const prompt = `
+          Crie uma lista de itens para uma cesta de doação ou pacote da ONG.
+          Nome do Pacote: ${packageName}
+          Descrição: ${description}
+
+          Retorne APENAS um JSON array. Cada objeto deve ter:
+          - name (string)
+          - quantity (number, pode ser float)
+          - unit (string: 'un', 'kg', 'lt', 'pc')
+          - averagePrice (number): Estime o preço médio de mercado desse item no Brasil em Reais (BRL), considere o custo da unidade/kg especificado. Ex: Se for 5kg de Arroz, o preço deve ser o pacote de 5kg (~30.00).
+          
+          Exemplo de itens: Arroz 5kg (R$ 28.00), Leite 2un (R$ 8.00), Sabonete 1un (R$ 2.50).
+        `;
+
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
@@ -89,41 +105,42 @@ export const suggestPackageItems = async (packageName: string, description: stri
 };
 
 export const parseFamilyData = async (rawText: string): Promise<Partial<Family>> => {
-    const prompt = `
-      Analise o texto abaixo e extraia os dados de uma família para cadastro na ONG (Lar Assistencial Matilde).
-      
-      Texto: "${rawText}"
-      
-      Retorne um JSON com a estrutura:
-      - responsibleName (string): Nome do responsável/assistido.
-      - rg (string): Se disponível.
-      - cpf (string): Se disponível.
-      - responsibleBirthDate (string YYYY-MM-DD): Se disponível.
-      - maritalStatus (string): 'Casada(o)', 'Solteira(o)', 'Viúva(o)', 'Divorciada(o)'.
-      - spouseName (string): Nome do cônjuge se houver.
-      - address (string): Endereço completo.
-      - phone (string)
-      - email (string): Se disponível.
-      - numberOfAdults (number): Pessoas na casa (exceto crianças).
-      - isPregnant (boolean)
-      - pregnancyDueDate (string YYYY-MM-DD)
-      - children (array de objetos):
-         - name (string)
-         - age (number)
-         - birthDate (string YYYY-MM-DD): Se disponível.
-         - gender ('M' ou 'F')
-         - clothingSize (string)
-         - shoeSize (number)
-         - isStudent (boolean)
-         - schoolYear (string): Ex: '5º Ano', 'Creche'.
-         - hasDisability (boolean): Se a criança tem deficiência.
-         - disabilityDetails (string): Detalhes da deficiência.
-         - notes (string): Obs extras.
-
-      Se faltar informação, deixe null ou string vazia, mas tente inferir o máximo possível do contexto.
-    `;
-
     try {
+        const ai = await getAIClient();
+        const prompt = `
+          Analise o texto abaixo e extraia os dados de uma família para cadastro na ONG (Lar Assistencial Matilde).
+          
+          Texto: "${rawText}"
+          
+          Retorne um JSON com a estrutura:
+          - responsibleName (string): Nome do responsável/assistido.
+          - rg (string): Se disponível.
+          - cpf (string): Se disponível.
+          - responsibleBirthDate (string YYYY-MM-DD): Se disponível.
+          - maritalStatus (string): 'Casada(o)', 'Solteira(o)', 'Viúva(o)', 'Divorciada(o)'.
+          - spouseName (string): Nome do cônjuge se houver.
+          - address (string): Endereço completo.
+          - phone (string)
+          - email (string): Se disponível.
+          - numberOfAdults (number): Pessoas na casa (exceto crianças).
+          - isPregnant (boolean)
+          - pregnancyDueDate (string YYYY-MM-DD)
+          - children (array de objetos):
+             - name (string)
+             - age (number)
+             - birthDate (string YYYY-MM-DD): Se disponível.
+             - gender ('M' ou 'F')
+             - clothingSize (string)
+             - shoeSize (number)
+             - isStudent (boolean)
+             - schoolYear (string): Ex: '5º Ano', 'Creche'.
+             - hasDisability (boolean): Se a criança tem deficiência.
+             - disabilityDetails (string): Detalhes da deficiência.
+             - notes (string): Obs extras.
+
+          Se faltar informação, deixe null ou string vazia, mas tente inferir o máximo possível do contexto.
+        `;
+
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,

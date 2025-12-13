@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storage';
 import { OrganizationLocation, LocationType, OrganizationBankInfo, BankAccount, PixKey, OrganizationSettings } from '../types';
-import { Save, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark, Star, Clock } from 'lucide-react';
+import { Save, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark, Star, Clock, Sparkles, Key } from 'lucide-react';
 
 const emptyLocation: OrganizationLocation = {
   id: '',
@@ -28,7 +28,7 @@ export const Settings: React.FC = () => {
   const [status, setStatus] = useState<'idle' | 'saved' | 'saving'>('idle');
   
   // Organization Settings
-  const [orgSettings, setOrgSettings] = useState<OrganizationSettings>({ registrationValidityMonths: 12 });
+  const [orgSettings, setOrgSettings] = useState<OrganizationSettings>({ registrationValidityMonths: 12, googleApiKey: '' });
 
   // Location States
   const [locations, setLocations] = useState<OrganizationLocation[]>([]);
@@ -280,7 +280,39 @@ export const Settings: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="border-t border-slate-100 my-6"></div>
+
+            {/* Configuração de IA */}
+            <div>
+                <div className="flex items-start gap-4 mb-4">
+                    <div className="p-3 bg-purple-50 text-purple-600 rounded-lg">
+                        <Sparkles size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">Inteligência Artificial (Google Gemini)</h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                        Configure a chave de API para habilitar recursos como geração automática de descrições de campanhas e leitura de cadastros.
+                        </p>
+                    </div>
+                </div>
+                <div className="space-y-2 max-w-lg">
+                    <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                        <Key size={16} /> Chave da API (Gemini API Key)
+                    </label>
+                    <input 
+                        type="password"
+                        value={orgSettings.googleApiKey || ''}
+                        onChange={e => setOrgSettings({...orgSettings, googleApiKey: e.target.value})}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 bg-white focus:ring-2 focus:ring-purple-500 outline-none font-mono text-sm"
+                        placeholder="AIzaSy..."
+                    />
+                    <p className="text-xs text-slate-400">
+                        A chave será salva no banco de dados da aplicação. Certifique-se de usar uma chave segura.
+                    </p>
+                </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-100 mt-6">
                 <button 
                 type="submit"
                 disabled={status === 'saving'}

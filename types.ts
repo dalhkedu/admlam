@@ -188,6 +188,7 @@ export interface OrganizationBankInfo {
 
 export interface OrganizationSettings {
     registrationValidityMonths: number; // Quantidade de meses que o cadastro é válido
+    googleApiKey?: string; // Chave da API do Gemini salva no banco
 }
 
 export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS' | 'PACKAGES' | 'EVENTS' | 'SETTINGS';
