@@ -1,4 +1,4 @@
-import { Family, Campaign, CampaignType, ClothingSize, Package, DistributionEvent, EventFrequency, OrganizationLocation, LocationType } from '../types';
+import { Family, Campaign, CampaignType, ClothingSize, Package, DistributionEvent, EventFrequency, OrganizationLocation, LocationType, OrganizationBankInfo } from '../types';
 
 // Initial Mock Data
 const MOCK_FAMILIES: Family[] = [
@@ -169,12 +169,22 @@ const MOCK_LOCATIONS: OrganizationLocation[] = [
     }
 ];
 
+const MOCK_BANK_INFO: OrganizationBankInfo = {
+    bankName: 'Banco do Brasil',
+    agency: '0001-X',
+    accountNumber: '12345-6',
+    pixKey: '12.345.678/0001-90',
+    cnpj: '12.345.678/0001-90',
+    accountHolder: 'Associação Lar Assistencial Matilde'
+};
+
 const STORAGE_KEYS = {
   FAMILIES: 'lar_matilde_families',
   CAMPAIGNS: 'lar_matilde_campaigns',
   PACKAGES: 'lar_matilde_packages',
   EVENTS: 'lar_matilde_events',
   LOCATIONS: 'lar_matilde_locations',
+  BANK_INFO: 'lar_matilde_bank_info',
   API_KEY: 'lar_matilde_api_key'
 };
 
@@ -351,6 +361,20 @@ export const StorageService = {
     const locations = StorageService.getLocations();
     const filtered = locations.filter(l => l.id !== id);
     localStorage.setItem(STORAGE_KEYS.LOCATIONS, JSON.stringify(filtered));
+  },
+
+  // Bank Info CRUD
+  getBankInfo: (): OrganizationBankInfo => {
+    const data = localStorage.getItem(STORAGE_KEYS.BANK_INFO);
+    if (!data) {
+      localStorage.setItem(STORAGE_KEYS.BANK_INFO, JSON.stringify(MOCK_BANK_INFO));
+      return MOCK_BANK_INFO;
+    }
+    return JSON.parse(data);
+  },
+
+  saveBankInfo: (info: OrganizationBankInfo): void => {
+    localStorage.setItem(STORAGE_KEYS.BANK_INFO, JSON.stringify(info));
   },
 
   // Settings / API Key

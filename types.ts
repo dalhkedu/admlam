@@ -137,4 +137,13 @@ export interface OrganizationLocation {
   notes?: string;
 }
 
+export interface OrganizationBankInfo {
+  bankName: string;
+  agency: string;
+  accountNumber: string;
+  pixKey: string;
+  cnpj: string;
+  accountHolder: string; // Titular da conta
+}
+
 export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS' | 'PACKAGES' | 'EVENTS' | 'SETTINGS';

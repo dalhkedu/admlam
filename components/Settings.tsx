@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storage';
-import { OrganizationLocation, LocationType } from '../types';
-import { Key, Save, AlertTriangle, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X } from 'lucide-react';
+import { OrganizationLocation, LocationType, OrganizationBankInfo } from '../types';
+import { Key, Save, AlertTriangle, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark } from 'lucide-react';
 
 const emptyLocation: OrganizationLocation = {
   id: '',
@@ -13,15 +13,28 @@ const emptyLocation: OrganizationLocation = {
   notes: ''
 };
 
+const emptyBankInfo: OrganizationBankInfo = {
+    bankName: '',
+    agency: '',
+    accountNumber: '',
+    pixKey: '',
+    cnpj: '',
+    accountHolder: ''
+};
+
 export const Settings: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
   const [status, setStatus] = useState<'idle' | 'saved'>('idle');
+  const [bankStatus, setBankStatus] = useState<'idle' | 'saved'>('idle');
   
   // Location States
   const [locations, setLocations] = useState<OrganizationLocation[]>([]);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<OrganizationLocation | null>(null);
   const [locationForm, setLocationForm] = useState<OrganizationLocation>(emptyLocation);
+
+  // Bank Info State
+  const [bankInfo, setBankInfo] = useState<OrganizationBankInfo>(emptyBankInfo);
 
   // Address Helper State for Modal
   const [cep, setCep] = useState('');
@@ -38,6 +51,7 @@ export const Settings: React.FC = () => {
   useEffect(() => {
     setApiKey(StorageService.getApiKey());
     setLocations(StorageService.getLocations());
+    setBankInfo(StorageService.getBankInfo());
   }, []);
 
   // API Key Handlers
@@ -46,6 +60,14 @@ export const Settings: React.FC = () => {
     StorageService.saveApiKey(apiKey);
     setStatus('saved');
     setTimeout(() => setStatus('idle'), 3000);
+  };
+
+  // Bank Info Handlers
+  const handleSaveBankInfo = (e: React.FormEvent) => {
+      e.preventDefault();
+      StorageService.saveBankInfo(bankInfo);
+      setBankStatus('saved');
+      setTimeout(() => setBankStatus('idle'), 3000);
   };
 
   // Location Handlers
@@ -190,6 +212,114 @@ export const Settings: React.FC = () => {
                 <>
                   <Save size={18} />
                   Salvar Configuração
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+
+       {/* Seção Dados Bancários */}
+       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="flex items-start gap-4 mb-6">
+          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+            <CreditCard size={24} />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-slate-800">Dados Bancários & Doações</h3>
+            <p className="text-sm text-slate-500 mt-1">
+              Configure os dados para recebimento de doações via depósito ou Pix.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSaveBankInfo} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
+                        <Landmark size={14}/> Banco
+                    </label>
+                    <input 
+                        type="text"
+                        placeholder="Ex: Banco do Brasil"
+                        value={bankInfo.bankName}
+                        onChange={(e) => setBankInfo({...bankInfo, bankName: e.target.value})}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
+                    />
+                </div>
+                 <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Titular da Conta</label>
+                    <input 
+                        type="text"
+                        placeholder="Ex: Associação Lar Matilde"
+                        value={bankInfo.accountHolder}
+                        onChange={(e) => setBankInfo({...bankInfo, accountHolder: e.target.value})}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">CNPJ</label>
+                    <input 
+                        type="text"
+                        placeholder="00.000.000/0001-00"
+                        value={bankInfo.cnpj}
+                        onChange={(e) => setBankInfo({...bankInfo, cnpj: e.target.value})}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white font-mono"
+                    />
+                </div>
+                 <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
+                        <Wallet size={14}/> Chave Pix (Principal)
+                    </label>
+                    <input 
+                        type="text"
+                        placeholder="CPF, CNPJ, Email ou Aleatória"
+                        value={bankInfo.pixKey}
+                        onChange={(e) => setBankInfo({...bankInfo, pixKey: e.target.value})}
+                        className="w-full border border-emerald-300 bg-emerald-50 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-emerald-900 font-medium"
+                    />
+                </div>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                 <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">Agência</label>
+                    <input 
+                        type="text"
+                        placeholder="0000-0"
+                        value={bankInfo.agency}
+                        onChange={(e) => setBankInfo({...bankInfo, agency: e.target.value})}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
+                    />
+                </div>
+                 <div className="space-y-1 md:col-span-2">
+                    <label className="text-sm font-medium text-slate-700">Conta Corrente / Poupança</label>
+                    <input 
+                        type="text"
+                        placeholder="000000-0"
+                        value={bankInfo.accountNumber}
+                        onChange={(e) => setBankInfo({...bankInfo, accountNumber: e.target.value})}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
+                    />
+                </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+            <button 
+              type="submit"
+              className={`
+                flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-white transition-all
+                ${bankStatus === 'saved' ? 'bg-green-600' : 'bg-emerald-600 hover:bg-emerald-700'}
+              `}
+            >
+              {bankStatus === 'saved' ? (
+                <>
+                  <CheckCircle size={18} />
+                  Dados Salvos
+                </>
+              ) : (
+                <>
+                  <Save size={18} />
+                  Salvar Dados Bancários
                 </>
               )}
             </button>
