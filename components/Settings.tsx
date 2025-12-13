@@ -26,7 +26,7 @@ const emptyAccount: BankAccount = {
 
 export const Settings: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
-  const [status, setStatus] = useState<'idle' | 'saved'>('idle');
+  const [status, setStatus] = useState<'idle' | 'saved' | 'saving'>('idle');
   
   // Organization Settings
   const [orgSettings, setOrgSettings] = useState<OrganizationSettings>({ registrationValidityMonths: 12 });
@@ -57,18 +57,21 @@ export const Settings: React.FC = () => {
   const [isLoadingCep, setIsLoadingCep] = useState(false);
 
   useEffect(() => {
-    setApiKey(StorageService.getApiKey());
-    setLocations(StorageService.getLocations());
-    setBankInfo(StorageService.getBankInfo());
-    setOrgSettings(StorageService.getSettings());
+    const loadData = async () => {
+        setApiKey(StorageService.getApiKey());
+        setLocations(await StorageService.getLocations());
+        setBankInfo(await StorageService.getBankInfo());
+        setOrgSettings(await StorageService.getSettings());
+    };
+    loadData();
   }, []);
 
   // API Key Handlers
-  const handleSaveApiKey = (e: React.FormEvent) => {
+  const handleSaveApiKey = async (e: React.FormEvent) => {
     e.preventDefault();
+    setStatus('saving');
     StorageService.saveApiKey(apiKey);
-    // Salvar Settings Tambem
-    StorageService.saveSettings(orgSettings);
+    await StorageService.saveSettings(orgSettings);
     
     setStatus('saved');
     setTimeout(() => setStatus('idle'), 3000);
@@ -95,17 +98,17 @@ export const Settings: React.FC = () => {
     setIsLocationModalOpen(true);
   };
 
-  const handleDeleteLocation = (id: string) => {
+  const handleDeleteLocation = async (id: string) => {
       if(window.confirm("Deseja excluir este local?")) {
-          StorageService.deleteLocation(id);
-          setLocations(StorageService.getLocations());
+          await StorageService.deleteLocation(id);
+          setLocations(await StorageService.getLocations());
       }
   };
 
-  const handleSaveLocation = (e: React.FormEvent) => {
+  const handleSaveLocation = async (e: React.FormEvent) => {
       e.preventDefault();
-      StorageService.saveLocation(locationForm);
-      setLocations(StorageService.getLocations());
+      await StorageService.saveLocation(locationForm);
+      setLocations(await StorageService.getLocations());
       setIsLocationModalOpen(false);
   };
 
@@ -126,16 +129,16 @@ export const Settings: React.FC = () => {
     setIsBankModalOpen(true);
   };
 
-  const handleDeleteAccount = (id: string) => {
+  const handleDeleteAccount = async (id: string) => {
     if (window.confirm("Deseja remover esta conta bancária?")) {
       const updatedAccounts = bankInfo.accounts.filter(a => a.id !== id);
       const newInfo = { accounts: updatedAccounts };
-      StorageService.saveBankInfo(newInfo);
+      await StorageService.saveBankInfo(newInfo);
       setBankInfo(newInfo);
     }
   };
 
-  const handleSaveAccount = (e: React.FormEvent) => {
+  const handleSaveAccount = async (e: React.FormEvent) => {
     e.preventDefault();
     
     let updatedAccounts = [...bankInfo.accounts];
@@ -159,7 +162,7 @@ export const Settings: React.FC = () => {
     }
 
     const newInfo = { accounts: updatedAccounts };
-    StorageService.saveBankInfo(newInfo);
+    await StorageService.saveBankInfo(newInfo);
     setBankInfo(newInfo);
     setIsBankModalOpen(false);
   };
@@ -318,12 +321,19 @@ export const Settings: React.FC = () => {
             <div className="flex justify-end pt-2">
                 <button 
                 type="submit"
+                disabled={status === 'saving'}
                 className={`
                     flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-white transition-all
                     ${status === 'saved' ? 'bg-green-600' : 'bg-emerald-600 hover:bg-emerald-700'}
+                    ${status === 'saving' ? 'opacity-70 cursor-not-allowed' : ''}
                 `}
                 >
-                {status === 'saved' ? (
+                {status === 'saving' ? (
+                    <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Salvando...
+                    </>
+                ) : status === 'saved' ? (
                     <>
                     <CheckCircle size={18} />
                     Salvo com Sucesso

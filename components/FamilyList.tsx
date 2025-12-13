@@ -127,8 +127,11 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
   const [validityMonths, setValidityMonths] = useState(12);
 
   useEffect(() => {
-      const settings = StorageService.getSettings();
-      setValidityMonths(settings.registrationValidityMonths);
+      const fetchSettings = async () => {
+          const settings = await StorageService.getSettings();
+          setValidityMonths(settings.registrationValidityMonths);
+      }
+      fetchSettings();
   }, []);
 
   const filteredFamilies = families.filter(family => {

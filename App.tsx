@@ -10,97 +10,131 @@ import { EventList } from './components/EventList';
 import { Settings } from './components/Settings';
 import { StorageService } from './services/storage';
 import { Family, Campaign, ViewState, Package, DistributionEvent, OrganizationBankInfo } from './types';
+import { Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('DASHBOARD');
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [families, setFamilies] = useState<Family[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [events, setEvents] = useState<DistributionEvent[]>([]);
   const [bankInfo, setBankInfo] = useState<OrganizationBankInfo>({ accounts: [] });
 
+  const fetchData = async () => {
+    // setIsLoading(true); // Don't show full loader on refreshes, only initial or manual
+    try {
+        const [fams, camps, pkgs, evts, bank] = await Promise.all([
+            StorageService.getFamilies(),
+            StorageService.getCampaigns(),
+            StorageService.getPackages(),
+            StorageService.getEvents(),
+            StorageService.getBankInfo()
+        ]);
+        setFamilies(fams);
+        setCampaigns(camps);
+        setPackages(pkgs);
+        setEvents(evts);
+        setBankInfo(bank);
+    } catch (error) {
+        console.error("Failed to fetch data:", error);
+        alert("Erro ao carregar dados do servidor.");
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
   // Load initial data
   useEffect(() => {
-    setFamilies(StorageService.getFamilies());
-    setCampaigns(StorageService.getCampaigns());
-    setPackages(StorageService.getPackages());
-    setEvents(StorageService.getEvents());
-    setBankInfo(StorageService.getBankInfo());
-  }, [currentView]); // Re-fetch when view changes to ensure settings updates are reflected
+    fetchData();
+  }, [currentView]); 
 
   const handleNavigate = (view: ViewState) => {
     setCurrentView(view);
   };
 
   // Family Handlers
-  const handleAddFamily = (family: Family) => {
-    StorageService.saveFamily(family);
-    setFamilies(StorageService.getFamilies());
+  const handleAddFamily = async (family: Family) => {
+    await StorageService.saveFamily(family);
+    fetchData();
   };
 
-  const handleUpdateFamily = (family: Family) => {
-    StorageService.saveFamily(family);
-    setFamilies(StorageService.getFamilies());
+  const handleUpdateFamily = async (family: Family) => {
+    await StorageService.saveFamily(family);
+    fetchData();
   };
 
-  const handleDeleteFamily = (id: string) => {
+  const handleDeleteFamily = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta família?')) {
-      StorageService.deleteFamily(id);
-      setFamilies(StorageService.getFamilies());
+      await StorageService.deleteFamily(id);
+      fetchData();
     }
   };
 
   // Package Handlers
-  const handleAddPackage = (pkg: Package) => {
-    StorageService.savePackage(pkg);
-    setPackages(StorageService.getPackages());
+  const handleAddPackage = async (pkg: Package) => {
+    await StorageService.savePackage(pkg);
+    fetchData();
   };
 
-  const handleUpdatePackage = (pkg: Package) => {
-    StorageService.savePackage(pkg);
-    setPackages(StorageService.getPackages());
+  const handleUpdatePackage = async (pkg: Package) => {
+    await StorageService.savePackage(pkg);
+    fetchData();
   };
 
-  const handleDeletePackage = (id: string) => {
+  const handleDeletePackage = async (id: string) => {
     if (window.confirm('Tem certeza? Isso pode afetar campanhas futuras que usem este pacote.')) {
-      StorageService.deletePackage(id);
-      setPackages(StorageService.getPackages());
+      await StorageService.deletePackage(id);
+      fetchData();
     }
   };
 
   // Campaign Handlers
-  const handleAddCampaign = (campaign: Campaign) => {
-    StorageService.saveCampaign(campaign);
-    setCampaigns(StorageService.getCampaigns());
+  const handleAddCampaign = async (campaign: Campaign) => {
+    await StorageService.saveCampaign(campaign);
+    fetchData();
   };
 
-  const handleUpdateCampaign = (campaign: Campaign) => {
-    StorageService.saveCampaign(campaign);
-    setCampaigns(StorageService.getCampaigns());
+  const handleUpdateCampaign = async (campaign: Campaign) => {
+    await StorageService.saveCampaign(campaign);
+    fetchData();
   };
 
-  const handleToggleCampaign = (id: string) => {
-    StorageService.toggleCampaignStatus(id);
-    setCampaigns(StorageService.getCampaigns());
+  const handleToggleCampaign = async (id: string) => {
+    await StorageService.toggleCampaignStatus(id);
+    fetchData();
   };
 
   // Event Handlers
-  const handleAddEvent = (event: DistributionEvent) => {
-    StorageService.saveEvent(event);
-    setEvents(StorageService.getEvents());
+  const handleAddEvent = async (event: DistributionEvent) => {
+    await StorageService.saveEvent(event);
+    fetchData();
   };
 
-  const handleUpdateEvent = (event: DistributionEvent) => {
-    StorageService.saveEvent(event);
-    setEvents(StorageService.getEvents());
+  const handleUpdateEvent = async (event: DistributionEvent) => {
+    await StorageService.saveEvent(event);
+    fetchData();
   };
 
-  const handleDeleteEvent = (id: string) => {
+  const handleDeleteEvent = async (id: string) => {
     if (window.confirm('Tem certeza que deseja cancelar/excluir este evento?')) {
-      StorageService.deleteEvent(id);
-      setEvents(StorageService.getEvents());
+      await StorageService.deleteEvent(id);
+      fetchData();
     }
   };
+
+  if (isLoading && families.length === 0) {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-slate-50">
+              <div className="text-center">
+                  <Loader2 size={48} className="animate-spin text-emerald-600 mx-auto mb-4" />
+                  <h2 className="text-xl font-bold text-slate-700">Carregando Lar Matilde...</h2>
+                  <p className="text-slate-500">Conectando ao banco de dados seguro.</p>
+              </div>
+          </div>
+      );
+  }
 
   return (
     <Layout currentView={currentView} onNavigate={handleNavigate}>

@@ -1,239 +1,48 @@
+import { db } from './firebase';
+import { collection, getDocs, doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
 import { Family, Campaign, CampaignType, ClothingSize, Package, DistributionEvent, EventFrequency, OrganizationLocation, LocationType, OrganizationBankInfo, OrganizationSettings } from '../types';
 
-// Initial Mock Data
-const MOCK_FAMILIES: Family[] = [
-  {
-    id: 'fam-001',
-    cardId: '001/24',
-    responsibleName: 'Maria da Silva',
-    responsibleBirthDate: '1985-05-20',
-    rg: '12.345.678-9',
-    cpf: '123.456.789-00',
-    maritalStatus: 'Casada(o)',
-    spouseName: 'João da Silva',
-    address: 'Rua das Flores, 123, Jd. Esperança',
-    phone: '(11) 99999-1234',
-    email: 'maria.silva@exemplo.com',
-    numberOfAdults: 2,
-    status: 'Ativo',
-    history: [
-        { id: 'hist-1', date: '2023-01-15T10:00:00.000Z', type: 'Cadastro', description: 'Cadastro inicial realizado no sistema.', author: 'Admin' }
-    ],
-    registrationDate: new Date('2023-01-15').toISOString(),
-    lastReviewDate: new Date('2024-01-15').toISOString(), // Data recente
-    isPregnant: true,
-    pregnancyDueDate: '2025-02-15',
-    children: [
-      { 
-        id: 'ch-1', 
-        name: 'Joãozinho', 
-        age: 8, 
-        birthDate: '2016-03-10',
-        gender: 'M', 
-        clothingSize: ClothingSize.INFANTIL_8, 
-        shoeSize: 32, 
-        isStudent: true,
-        schoolYear: '3º Ano',
-        notes: 'Gosta de futebol' 
-      },
-      { 
-        id: 'ch-2', 
-        name: 'Ana', 
-        age: 5, 
-        birthDate: '2019-07-22',
-        gender: 'F', 
-        clothingSize: ClothingSize.INFANTIL_6, 
-        shoeSize: 28, 
-        isStudent: true,
-        schoolYear: 'Pré-escola',
-        notes: 'Gosta de bonecas' 
-      }
-    ]
-  },
-  {
-    id: 'fam-002',
-    cardId: '002/24',
-    responsibleName: 'José Santos',
-    responsibleBirthDate: '1990-11-12',
-    rg: '98.765.432-1',
-    cpf: '987.654.321-99',
-    maritalStatus: 'Solteira(o)',
-    address: 'Av. Principal, 450, Centro',
-    phone: '(11) 98888-5678',
-    numberOfAdults: 1,
-    status: 'Ativo',
-    history: [
-        { id: 'hist-2', date: '2023-03-10T14:30:00.000Z', type: 'Cadastro', description: 'Cadastro realizado.', author: 'Admin' },
-        { id: 'hist-3', date: '2023-06-15T09:00:00.000Z', type: 'Atualização', description: 'Endereço atualizado.', author: 'Admin' }
-    ],
-    registrationDate: new Date('2023-03-10').toISOString(),
-    lastReviewDate: new Date('2023-03-10').toISOString(),
-    isPregnant: false,
-    children: [
-      { 
-        id: 'ch-3', 
-        name: 'Pedro', 
-        age: 12, 
-        birthDate: '2012-05-15',
-        gender: 'M', 
-        clothingSize: ClothingSize.INFANTIL_14, 
-        shoeSize: 36,
-        isStudent: true,
-        schoolYear: '6º Ano',
-        hasDisability: true,
-        disabilityDetails: 'Autismo leve'
-      }
-    ]
-  }
-];
-
-const MOCK_PACKAGES: Package[] = [
-  {
-    id: 'pkg-001',
-    name: 'Cesta Básica de Alimentos',
-    description: 'Itens essenciais de alimentação para subsistência mensal.',
-    items: [
-      { id: 'pi-1', name: 'Arroz', quantity: 5, unit: 'kg', averagePrice: 28.50 },
-      { id: 'pi-2', name: 'Feijão', quantity: 1, unit: 'kg', averagePrice: 8.90 },
-      { id: 'pi-3', name: 'Macarrão', quantity: 1, unit: 'un', averagePrice: 4.50 }, 
-      { id: 'pi-4', name: 'Óleo de Soja', quantity: 1, unit: 'lt', averagePrice: 6.80 },
-      { id: 'pi-5', name: 'Açúcar', quantity: 1, unit: 'kg', averagePrice: 4.20 },
-      { id: 'pi-6', name: 'Café', quantity: 1, unit: 'un', averagePrice: 15.00 },
-      { id: 'pi-7', name: 'Farinha de Trigo', quantity: 1, unit: 'kg', averagePrice: 5.50 },
-      { id: 'pi-8', name: 'Leite em Pó', quantity: 1, unit: 'un', averagePrice: 18.90 },
-      { id: 'pi-9', name: 'Sardinha em Lata', quantity: 1, unit: 'un', averagePrice: 5.00 },
-      { id: 'pi-10', name: 'Sal', quantity: 1, unit: 'kg', averagePrice: 2.00 },
-      { id: 'pi-11', name: 'Margarina', quantity: 1, unit: 'un', averagePrice: 6.50 } 
-    ]
-  },
-  {
-    id: 'pkg-002',
-    name: 'Kit Higiene Pessoal',
-    description: 'Produtos básicos de higiene e limpeza.',
-    items: [
-      { id: 'pi-12', name: 'Sabão em Barra', quantity: 1, unit: 'un', averagePrice: 3.50 },
-      { id: 'pi-13', name: 'Detergente', quantity: 1, unit: 'un', averagePrice: 2.50 },
-      { id: 'pi-14', name: 'Papel Higiênico (Pct 4)', quantity: 1, unit: 'un', averagePrice: 6.00 },
-      { id: 'pi-15', name: 'Creme Dental', quantity: 1, unit: 'un', averagePrice: 4.00 },
-      { id: 'pi-16', name: 'Sabonete', quantity: 2, unit: 'un', averagePrice: 2.50 }
-    ]
-  }
-];
-
-const MOCK_CAMPAIGNS: Campaign[] = [
-  {
-    id: 'camp-001',
-    title: 'Natal Solidário 2024',
-    description: 'Campanha para arrecadação de brinquedos e roupas para as crianças do lar.',
-    type: CampaignType.CHRISTMAS,
-    startDate: new Date('2024-11-01').toISOString(),
-    endDate: new Date('2024-12-20').toISOString(),
-    isActive: true,
-    items: [
-      { id: 'it-1', name: 'Brinquedos', targetQuantity: 3, collectedQuantity: 1, unit: 'un', averagePrice: 40.00 },
-      { id: 'it-2', name: 'Panetones', targetQuantity: 2, collectedQuantity: 0, unit: 'un', averagePrice: 15.00 }
-    ],
-    beneficiaryFamilyIds: ['fam-001', 'fam-002'],
-    packageIds: [],
-    bankAccountId: 'acc-001',
-    pixKeyId: 'pix-1'
-  }
-];
-
-const MOCK_EVENTS: DistributionEvent[] = [
-  {
-    id: 'evt-001',
-    title: 'Festa de Natal do Lar',
-    description: 'Entrega dos presentes de Natal e almoço comunitário.',
-    date: '2024-12-22',
-    startTime: '10:00',
-    endTime: '15:00',
-    location: 'Sede do Lar - Salão Principal',
-    isFree: true,
-    hasParking: false,
-    isParkingPaid: false,
-    frequency: EventFrequency.YEARLY,
-    linkedCampaignIds: ['camp-001'],
-    status: 'Agendado',
-    isDeliveryEvent: true,
-    isRegistrationReview: false,
-    deliveredFamilyIds: []
-  },
-  {
-    id: 'evt-002',
-    title: 'Entrega de Cestas - Novembro',
-    description: 'Distribuição mensal das cestas básicas para famílias cadastradas.',
-    date: '2024-11-30',
-    startTime: '09:00',
-    endTime: '12:00',
-    location: 'Sede do Lar - Pátio',
-    isFree: true,
-    hasParking: true,
-    isParkingPaid: false,
-    frequency: EventFrequency.MONTHLY,
-    linkedCampaignIds: [],
-    status: 'Agendado',
-    isDeliveryEvent: true,
-    isRegistrationReview: true,
-    deliveredFamilyIds: []
-  }
-];
-
-const MOCK_LOCATIONS: OrganizationLocation[] = [
-    {
-        id: 'loc-001',
-        name: 'Sede Principal',
-        type: LocationType.HEADQUARTERS,
-        address: 'Rua das Palmeiras, 100, Centro, São Paulo/SP',
-        phone: '(11) 3333-4444',
-        operatingHours: 'Seg-Sex 08:00 às 18:00',
-        notes: 'Entrada principal.'
-    }
-];
-
-const MOCK_BANK_INFO: OrganizationBankInfo = {
-    accounts: [
-      {
-        id: 'acc-001',
-        bankName: 'Banco do Brasil',
-        agency: '0001-X',
-        accountNumber: '12345-6',
-        accountHolder: 'Associação Lar Assistencial Matilde',
-        cnpj: '12.345.678/0001-90',
-        isPrimary: true,
-        pixKeys: [
-          { id: 'pix-1', key: '12.345.678/0001-90', type: 'CNPJ', isPrimary: true },
-          { id: 'pix-2', key: 'contato@larmatilde.org', type: 'Email', isPrimary: false }
-        ]
-      }
-    ]
-};
-
-const MOCK_SETTINGS: OrganizationSettings = {
-    registrationValidityMonths: 12 // Default 1 ano
+// Coleções do Firestore
+const COLLECTIONS = {
+  FAMILIES: 'families',
+  CAMPAIGNS: 'campaigns',
+  PACKAGES: 'packages',
+  EVENTS: 'events',
+  LOCATIONS: 'locations',
+  BANK_INFO: 'bank_info',
+  SETTINGS: 'settings'
 };
 
 const STORAGE_KEYS = {
-  FAMILIES: 'lar_matilde_families',
-  CAMPAIGNS: 'lar_matilde_campaigns',
-  PACKAGES: 'lar_matilde_packages',
-  EVENTS: 'lar_matilde_events',
-  LOCATIONS: 'lar_matilde_locations',
-  BANK_INFO: 'lar_matilde_bank_info',
-  SETTINGS: 'lar_matilde_settings',
-  API_KEY: 'lar_matilde_api_key'
+  API_KEY: 'lar_matilde_api_key' // Mantém API Key local por segurança/conveniência
 };
 
-// Helper function to check and suspend expired families
-const checkFamilyExpirations = (families: Family[], campaigns: Campaign[]): { families: Family[], campaigns: Campaign[] } => {
-    const settingsStr = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-    const settings: OrganizationSettings = settingsStr ? JSON.parse(settingsStr) : MOCK_SETTINGS;
+// Dados Padrão (Fallbacks)
+const DEFAULT_SETTINGS: OrganizationSettings = { registrationValidityMonths: 12 };
+const DEFAULT_BANK_INFO: OrganizationBankInfo = { accounts: [] };
+
+// Função auxiliar para verificar expirações (Lógica de Negócio)
+const checkFamilyExpirations = async (families: Family[], campaigns: Campaign[]): Promise<{ families: Family[], campaigns: Campaign[] }> => {
+    // Busca configurações do Firestore
+    let settings = DEFAULT_SETTINGS;
+    try {
+        const settingsDoc = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'global'));
+        if (settingsDoc.exists()) {
+            settings = settingsDoc.data() as OrganizationSettings;
+        }
+    } catch (e) {
+        console.warn("Could not fetch settings for expiration check", e);
+    }
     
     const today = new Date();
     let familiesUpdated = false;
     let campaignsUpdated = false;
 
-    const updatedFamilies = families.map(f => {
+    // Deep copy para manipulação
+    let updatedFamilies = [...families];
+    let updatedCampaigns = [...campaigns];
+
+    updatedFamilies = updatedFamilies.map(f => {
         if (f.status === 'Ativo') {
             const lastReview = new Date(f.lastReviewDate || f.registrationDate);
             const expirationDate = new Date(lastReview);
@@ -258,12 +67,10 @@ const checkFamilyExpirations = (families: Family[], campaigns: Campaign[]): { fa
         return f;
     });
 
-    // If any family was suspended, we need to remove them from active campaigns
-    let updatedCampaigns = [...campaigns];
     if (familiesUpdated) {
         const suspendedIds = updatedFamilies.filter(f => f.status === 'Suspenso').map(f => f.id);
         
-        updatedCampaigns = campaigns.map(c => {
+        updatedCampaigns = updatedCampaigns.map(c => {
              const hasSuspended = c.beneficiaryFamilyIds.some(id => suspendedIds.includes(id));
              if (hasSuspended) {
                  campaignsUpdated = true;
@@ -274,78 +81,212 @@ const checkFamilyExpirations = (families: Family[], campaigns: Campaign[]): { fa
              }
              return c;
         });
+
+        // Salvar alterações no banco
+        // Nota: Em um sistema real de grande escala, isso seria uma Cloud Function. 
+        // Aqui faremos update no cliente para simplificar.
+        const updatePromises: Promise<void>[] = [];
+        
+        updatedFamilies.forEach(f => {
+            const original = families.find(old => old.id === f.id);
+            if (original?.status !== f.status) {
+                updatePromises.push(setDoc(doc(db, COLLECTIONS.FAMILIES, f.id), f));
+            }
+        });
+
+        if (campaignsUpdated) {
+            updatedCampaigns.forEach(c => {
+                 // Simplificação: Salva apenas se mudou (lógica básica)
+                 const original = campaigns.find(old => old.id === c.id);
+                 if (original && original.beneficiaryFamilyIds.length !== c.beneficiaryFamilyIds.length) {
+                     updatePromises.push(setDoc(doc(db, COLLECTIONS.CAMPAIGNS, c.id), c));
+                 }
+            });
+        }
+        
+        await Promise.all(updatePromises);
     }
 
     return {
-        families: familiesUpdated ? updatedFamilies : families,
-        campaigns: campaignsUpdated ? updatedCampaigns : campaigns
+        families: updatedFamilies,
+        campaigns: updatedCampaigns
     };
 };
 
 export const StorageService = {
-  getFamilies: (): Family[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.FAMILIES);
-    let families = data ? JSON.parse(data) : MOCK_FAMILIES;
+  // FAMILIES
+  getFamilies: async (): Promise<Family[]> => {
+    const snapshot = await getDocs(collection(db, COLLECTIONS.FAMILIES));
+    let families = snapshot.docs.map(doc => doc.data() as Family);
     
-    // Also get campaigns to unlink if suspended
-    const campaignsData = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
-    let campaigns = campaignsData ? JSON.parse(campaignsData) : MOCK_CAMPAIGNS;
+    // Precisamos das campanhas para a lógica de expiração
+    const campSnapshot = await getDocs(collection(db, COLLECTIONS.CAMPAIGNS));
+    let campaigns = campSnapshot.docs.map(doc => doc.data() as Campaign);
 
-    // Run expiration logic
-    const result = checkFamilyExpirations(families, campaigns);
-
-    // Save if changes happened during read
-    if (result.families !== families) {
-        localStorage.setItem(STORAGE_KEYS.FAMILIES, JSON.stringify(result.families));
-        families = result.families;
-    }
-    if (result.campaigns !== campaigns) {
-        localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(result.campaigns));
-    }
-
-    return families;
+    const result = await checkFamilyExpirations(families, campaigns);
+    return result.families;
   },
 
-  saveFamily: (family: Family): void => {
-    const families = StorageService.getFamilies(); // This triggers expiration check first
-    const index = families.findIndex(f => f.id === family.id);
-    if (index >= 0) {
-      families[index] = family;
-    } else {
-      families.push(family);
-    }
-    localStorage.setItem(STORAGE_KEYS.FAMILIES, JSON.stringify(families));
+  saveFamily: async (family: Family): Promise<void> => {
+    await setDoc(doc(db, COLLECTIONS.FAMILIES, family.id), family);
   },
 
-  deleteFamily: (id: string): void => {
-    const families = StorageService.getFamilies();
-    const filtered = families.filter(f => f.id !== id);
-    localStorage.setItem(STORAGE_KEYS.FAMILIES, JSON.stringify(filtered));
+  deleteFamily: async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, COLLECTIONS.FAMILIES, id));
   },
 
-  // Logic to register a delivery
-  registerDelivery: (eventId: string, familyId: string, campaignId: string, campaignTitle: string): void => {
-      const events = StorageService.getEvents();
-      const eventIndex = events.findIndex(e => e.id === eventId);
-      if (eventIndex < 0) return;
+  // PACKAGES
+  getPackages: async (): Promise<Package[]> => {
+    const snapshot = await getDocs(collection(db, COLLECTIONS.PACKAGES));
+    return snapshot.docs.map(doc => doc.data() as Package);
+  },
 
-      const event = events[eventIndex];
-      const today = new Date().toISOString();
+  savePackage: async (pkg: Package): Promise<void> => {
+    await setDoc(doc(db, COLLECTIONS.PACKAGES, pkg.id), pkg);
+  },
 
-      // 1. Update Event (Add to delivered list)
-      if (!event.deliveredFamilyIds) event.deliveredFamilyIds = [];
-      if (!event.deliveredFamilyIds.includes(familyId)) {
-          event.deliveredFamilyIds.push(familyId);
-          localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(events));
+  deletePackage: async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, COLLECTIONS.PACKAGES, id));
+  },
+
+  // CAMPAIGNS
+  getCampaigns: async (): Promise<Campaign[]> => {
+    const snapshot = await getDocs(collection(db, COLLECTIONS.CAMPAIGNS));
+    let campaigns = snapshot.docs.map(doc => doc.data() as Campaign);
+
+    // Update old active campaigns logic
+    const today = new Date().toISOString().split('T')[0];
+    const updates: Promise<void>[] = [];
+
+    campaigns = campaigns.map(c => {
+      let changed = false;
+      // Ensure fields exist
+      if (!c.beneficiaryFamilyIds) { c.beneficiaryFamilyIds = []; changed = true; }
+      if (!c.packageIds) { c.packageIds = []; changed = true; }
+
+      // Auto close expired
+      if (c.isActive && c.endDate < today) {
+        c.isActive = false;
+        changed = true;
       }
 
-      // 2. Update Family (History + Review Date if applicable)
-      const families = StorageService.getFamilies();
-      const familyIndex = families.findIndex(f => f.id === familyId);
-      if (familyIndex >= 0) {
-          const family = families[familyIndex];
+      if (changed) {
+          updates.push(setDoc(doc(db, COLLECTIONS.CAMPAIGNS, c.id), c));
+      }
+      return c;
+    });
+
+    await Promise.all(updates);
+    return campaigns;
+  },
+
+  saveCampaign: async (campaign: Campaign): Promise<void> => {
+    await setDoc(doc(db, COLLECTIONS.CAMPAIGNS, campaign.id), campaign);
+  },
+  
+  toggleCampaignStatus: async (id: string): Promise<void> => {
+      // Fetch fresh to toggle safely
+      const ref = doc(db, COLLECTIONS.CAMPAIGNS, id);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+          const c = snap.data() as Campaign;
+          const today = new Date().toISOString().split('T')[0];
           
-          // History Entry
+          if (!c.isActive && c.endDate < today) {
+            return; // Cannot reactivate expired date
+          }
+          
+          await setDoc(ref, { ...c, isActive: !c.isActive });
+      }
+  },
+
+  // EVENTS
+  getEvents: async (): Promise<DistributionEvent[]> => {
+    const snapshot = await getDocs(collection(db, COLLECTIONS.EVENTS));
+    return snapshot.docs.map(doc => doc.data() as DistributionEvent);
+  },
+
+  saveEvent: async (event: DistributionEvent): Promise<void> => {
+    await setDoc(doc(db, COLLECTIONS.EVENTS, event.id), event);
+  },
+
+  deleteEvent: async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, COLLECTIONS.EVENTS, id));
+  },
+
+  // LOCATIONS
+  getLocations: async (): Promise<OrganizationLocation[]> => {
+    const snapshot = await getDocs(collection(db, COLLECTIONS.LOCATIONS));
+    return snapshot.docs.map(doc => doc.data() as OrganizationLocation);
+  },
+
+  saveLocation: async (location: OrganizationLocation): Promise<void> => {
+    await setDoc(doc(db, COLLECTIONS.LOCATIONS, location.id), location);
+  },
+
+  deleteLocation: async (id: string): Promise<void> => {
+    await deleteDoc(doc(db, COLLECTIONS.LOCATIONS, id));
+  },
+
+  // BANK INFO
+  getBankInfo: async (): Promise<OrganizationBankInfo> => {
+    const docRef = doc(db, COLLECTIONS.BANK_INFO, 'main');
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+        return snap.data() as OrganizationBankInfo;
+    }
+    return DEFAULT_BANK_INFO;
+  },
+
+  saveBankInfo: async (info: OrganizationBankInfo): Promise<void> => {
+    await setDoc(doc(db, COLLECTIONS.BANK_INFO, 'main'), info);
+  },
+
+  // SETTINGS (Global)
+  getSettings: async (): Promise<OrganizationSettings> => {
+      const docRef = doc(db, COLLECTIONS.SETTINGS, 'global');
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+          return snap.data() as OrganizationSettings;
+      }
+      return DEFAULT_SETTINGS;
+  },
+
+  saveSettings: async (settings: OrganizationSettings): Promise<void> => {
+      await setDoc(doc(db, COLLECTIONS.SETTINGS, 'global'), settings);
+  },
+
+  // API KEY (Local Only)
+  getApiKey: (): string => {
+    return localStorage.getItem(STORAGE_KEYS.API_KEY) || '';
+  },
+
+  saveApiKey: (key: string): void => {
+    localStorage.setItem(STORAGE_KEYS.API_KEY, key);
+  },
+
+  // DELIVERY REGISTRATION LOGIC
+  registerDelivery: async (eventId: string, familyId: string, campaignId: string, campaignTitle: string): Promise<void> => {
+      const eventRef = doc(db, COLLECTIONS.EVENTS, eventId);
+      const eventSnap = await getDoc(eventRef);
+      if (!eventSnap.exists()) return;
+      
+      const event = eventSnap.data() as DistributionEvent;
+      const today = new Date().toISOString();
+
+      // 1. Update Event
+      if (!event.deliveredFamilyIds) event.deliveredFamilyIds = [];
+      if (!event.deliveredFamilyIds.includes(familyId)) {
+          const newDelivered = [...event.deliveredFamilyIds, familyId];
+          await setDoc(eventRef, { ...event, deliveredFamilyIds: newDelivered });
+      }
+
+      // 2. Update Family
+      const familyRef = doc(db, COLLECTIONS.FAMILIES, familyId);
+      const familySnap = await getDoc(familyRef);
+      if (familySnap.exists()) {
+          const family = familySnap.data() as Family;
+          
           const historyEntry = {
               id: crypto.randomUUID(),
               date: today,
@@ -354,14 +295,15 @@ export const StorageService = {
               author: 'Admin'
           };
           
-          family.history = [historyEntry, ...(family.history || [])];
+          const updatedHistory = [historyEntry, ...(family.history || [])];
+          let updates: any = { history: updatedHistory };
 
           // Registration Review Logic
           if (event.isRegistrationReview) {
-              family.lastReviewDate = today;
+              updates.lastReviewDate = today;
               if (family.status !== 'Ativo') {
-                  family.status = 'Ativo';
-                  family.history.unshift({
+                  updates.status = 'Ativo';
+                  updates.history.unshift({
                       id: crypto.randomUUID(),
                       date: today,
                       type: 'Reativação' as const,
@@ -371,194 +313,7 @@ export const StorageService = {
               }
           }
 
-          localStorage.setItem(STORAGE_KEYS.FAMILIES, JSON.stringify(families));
+          await setDoc(familyRef, { ...family, ...updates });
       }
-  },
-
-  // Packages CRUD
-  getPackages: (): Package[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.PACKAGES);
-    if (!data) {
-      localStorage.setItem(STORAGE_KEYS.PACKAGES, JSON.stringify(MOCK_PACKAGES));
-      return MOCK_PACKAGES;
-    }
-    return JSON.parse(data);
-  },
-
-  savePackage: (pkg: Package): void => {
-    const packages = StorageService.getPackages();
-    const index = packages.findIndex(p => p.id === pkg.id);
-    if (index >= 0) {
-      packages[index] = pkg;
-    } else {
-      packages.push(pkg);
-    }
-    localStorage.setItem(STORAGE_KEYS.PACKAGES, JSON.stringify(packages));
-  },
-
-  deletePackage: (id: string): void => {
-    const packages = StorageService.getPackages();
-    const filtered = packages.filter(p => p.id !== id);
-    localStorage.setItem(STORAGE_KEYS.PACKAGES, JSON.stringify(filtered));
-  },
-
-  // Campaigns CRUD
-  getCampaigns: (): Campaign[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
-    let campaigns: Campaign[] = [];
-    
-    if (!data) {
-      campaigns = MOCK_CAMPAIGNS;
-      localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(MOCK_CAMPAIGNS));
-    } else {
-      campaigns = JSON.parse(data);
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    let hasUpdates = false;
-
-    const updatedCampaigns = campaigns.map(c => {
-      if (!c.beneficiaryFamilyIds) {
-          c.beneficiaryFamilyIds = [];
-          hasUpdates = true;
-      }
-      if (!c.packageIds) {
-          c.packageIds = [];
-          hasUpdates = true;
-      }
-
-      if (c.isActive && c.endDate < today) {
-        hasUpdates = true;
-        return { ...c, isActive: false };
-      }
-      return c;
-    });
-
-    if (hasUpdates) {
-      localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(updatedCampaigns));
-    }
-
-    return updatedCampaigns;
-  },
-
-  saveCampaign: (campaign: Campaign): void => {
-    const campaigns = StorageService.getCampaigns();
-    const index = campaigns.findIndex(c => c.id === campaign.id);
-    if (index >= 0) {
-      campaigns[index] = campaign;
-    } else {
-      campaigns.push(campaign);
-    }
-    localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(campaigns));
-  },
-  
-  toggleCampaignStatus: (id: string): void => {
-      const campaigns = StorageService.getCampaigns();
-      const campaignIndex = campaigns.findIndex(c => c.id === id);
-      
-      if(campaignIndex >= 0) {
-          const campaign = campaigns[campaignIndex];
-          const today = new Date().toISOString().split('T')[0];
-          
-          if (!campaign.isActive && campaign.endDate < today) {
-            return;
-          }
-
-          campaign.isActive = !campaign.isActive;
-          localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(campaigns));
-      }
-  },
-
-  // Events CRUD
-  getEvents: (): DistributionEvent[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.EVENTS);
-    if (!data) {
-      localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(MOCK_EVENTS));
-      return MOCK_EVENTS;
-    }
-    return JSON.parse(data);
-  },
-
-  saveEvent: (event: DistributionEvent): void => {
-    const events = StorageService.getEvents();
-    const index = events.findIndex(e => e.id === event.id);
-    if (index >= 0) {
-      events[index] = event;
-    } else {
-      events.push(event);
-    }
-    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(events));
-  },
-
-  deleteEvent: (id: string): void => {
-    const events = StorageService.getEvents();
-    const filtered = events.filter(e => e.id !== id);
-    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(filtered));
-  },
-
-  // Locations CRUD
-  getLocations: (): OrganizationLocation[] => {
-    const data = localStorage.getItem(STORAGE_KEYS.LOCATIONS);
-    if (!data) {
-      localStorage.setItem(STORAGE_KEYS.LOCATIONS, JSON.stringify(MOCK_LOCATIONS));
-      return MOCK_LOCATIONS;
-    }
-    return JSON.parse(data);
-  },
-
-  saveLocation: (location: OrganizationLocation): void => {
-    const locations = StorageService.getLocations();
-    const index = locations.findIndex(l => l.id === location.id);
-    if (index >= 0) {
-      locations[index] = location;
-    } else {
-      locations.push(location);
-    }
-    localStorage.setItem(STORAGE_KEYS.LOCATIONS, JSON.stringify(locations));
-  },
-
-  deleteLocation: (id: string): void => {
-    const locations = StorageService.getLocations();
-    const filtered = locations.filter(l => l.id !== id);
-    localStorage.setItem(STORAGE_KEYS.LOCATIONS, JSON.stringify(filtered));
-  },
-
-  // Bank Info CRUD
-  getBankInfo: (): OrganizationBankInfo => {
-    const data = localStorage.getItem(STORAGE_KEYS.BANK_INFO);
-    if (!data) {
-      localStorage.setItem(STORAGE_KEYS.BANK_INFO, JSON.stringify(MOCK_BANK_INFO));
-      return MOCK_BANK_INFO;
-    }
-    return JSON.parse(data);
-  },
-
-  saveBankInfo: (info: OrganizationBankInfo): void => {
-    localStorage.setItem(STORAGE_KEYS.BANK_INFO, JSON.stringify(info));
-  },
-
-  // Settings
-  getSettings: (): OrganizationSettings => {
-      const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
-      if(!data) {
-          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(MOCK_SETTINGS));
-          return MOCK_SETTINGS;
-      }
-      return JSON.parse(data);
-  },
-
-  saveSettings: (settings: OrganizationSettings): void => {
-      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
-      // Trigger expiration check immediately to reflect setting changes
-      StorageService.getFamilies();
-  },
-
-  // Settings / API Key
-  getApiKey: (): string => {
-    return localStorage.getItem(STORAGE_KEYS.API_KEY) || '';
-  },
-
-  saveApiKey: (key: string): void => {
-    localStorage.setItem(STORAGE_KEYS.API_KEY, key);
   }
 };

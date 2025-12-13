@@ -61,7 +61,10 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
 
   useEffect(() => {
       // Load families for the delivery modal context
-      setAllFamilies(StorageService.getFamilies());
+      const loadFamilies = async () => {
+          setAllFamilies(await StorageService.getFamilies());
+      };
+      loadFamilies();
   }, []);
 
   const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -166,11 +169,11 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
       setDeliverySearchQuery('');
   };
 
-  const handleConfirmDelivery = (familyId: string, campaignId: string, campaignTitle: string) => {
+  const handleConfirmDelivery = async (familyId: string, campaignId: string, campaignTitle: string) => {
       if (!selectedEventForDelivery) return;
       
       if(window.confirm("Confirmar entrega para esta família?")) {
-          StorageService.registerDelivery(selectedEventForDelivery.id, familyId, campaignId, campaignTitle);
+          await StorageService.registerDelivery(selectedEventForDelivery.id, familyId, campaignId, campaignTitle);
           // Atualiza estado local para refletir na UI sem recarregar tudo
           const updatedEvent = {
               ...selectedEventForDelivery,
@@ -179,7 +182,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
           setSelectedEventForDelivery(updatedEvent);
           onUpdateEvent(updatedEvent); // Atualiza na lista principal
           // Atualiza lista de famílias global para refletir mudança de status se houver
-          setAllFamilies(StorageService.getFamilies()); 
+          setAllFamilies(await StorageService.getFamilies()); 
       }
   };
 
