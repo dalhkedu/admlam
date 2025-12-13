@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ViewState } from '../types';
-import { LayoutDashboard, Users, Gift, Menu, X, HeartHandshake } from 'lucide-react';
+import { LayoutDashboard, Users, Gift, Menu, X, HeartHandshake, Package } from 'lucide-react';
 
 interface LayoutProps {
   currentView: ViewState;
@@ -14,6 +14,7 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
   const navItems = [
     { id: 'DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'FAMILIES', label: 'Famílias', icon: Users },
+    { id: 'PACKAGES', label: 'Pacotes / Cestas', icon: Package },
     { id: 'CAMPAIGNS', label: 'Campanhas', icon: Gift },
   ];
 

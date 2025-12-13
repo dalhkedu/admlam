@@ -1,4 +1,4 @@
-import { Family, Campaign, CampaignType, ClothingSize } from '../types';
+import { Family, Campaign, CampaignType, ClothingSize, Package } from '../types';
 
 // Initial Mock Data
 const MOCK_FAMILIES: Family[] = [
@@ -29,6 +29,39 @@ const MOCK_FAMILIES: Family[] = [
   }
 ];
 
+const MOCK_PACKAGES: Package[] = [
+  {
+    id: 'pkg-001',
+    name: 'Cesta Básica de Alimentos',
+    description: 'Itens essenciais de alimentação para subsistência mensal.',
+    items: [
+      { id: 'pi-1', name: 'Arroz', quantity: 5, unit: 'kg' },
+      { id: 'pi-2', name: 'Feijão', quantity: 1, unit: 'kg' },
+      { id: 'pi-3', name: 'Macarrão', quantity: 1, unit: 'un' }, // Ajustado para un/pacote pois 500g não é kg inteiro
+      { id: 'pi-4', name: 'Óleo de Soja', quantity: 1, unit: 'lt' },
+      { id: 'pi-5', name: 'Açúcar', quantity: 1, unit: 'kg' },
+      { id: 'pi-6', name: 'Café', quantity: 1, unit: 'un' }, // 500g pacote
+      { id: 'pi-7', name: 'Farinha de Trigo', quantity: 1, unit: 'kg' },
+      { id: 'pi-8', name: 'Leite em Pó', quantity: 1, unit: 'un' }, // Lata/Pacote
+      { id: 'pi-9', name: 'Sardinha em Lata', quantity: 1, unit: 'un' },
+      { id: 'pi-10', name: 'Sal', quantity: 1, unit: 'kg' },
+      { id: 'pi-11', name: 'Margarina', quantity: 1, unit: 'un' } // 250g pote
+    ]
+  },
+  {
+    id: 'pkg-002',
+    name: 'Kit Higiene Pessoal',
+    description: 'Produtos básicos de higiene e limpeza.',
+    items: [
+      { id: 'pi-12', name: 'Sabão em Barra', quantity: 1, unit: 'un' },
+      { id: 'pi-13', name: 'Detergente', quantity: 1, unit: 'un' },
+      { id: 'pi-14', name: 'Papel Higiênico (Pct 4)', quantity: 1, unit: 'un' },
+      { id: 'pi-15', name: 'Creme Dental', quantity: 1, unit: 'un' },
+      { id: 'pi-16', name: 'Sabonete', quantity: 2, unit: 'un' }
+    ]
+  }
+];
+
 const MOCK_CAMPAIGNS: Campaign[] = [
   {
     id: 'camp-001',
@@ -39,30 +72,18 @@ const MOCK_CAMPAIGNS: Campaign[] = [
     endDate: new Date('2024-12-20').toISOString(),
     isActive: true,
     items: [
-      { id: 'it-1', name: 'Brinquedos', targetQuantity: 50, collectedQuantity: 12, unit: 'un' },
-      { id: 'it-2', name: 'Panetones', targetQuantity: 25, collectedQuantity: 5, unit: 'un' }
+      { id: 'it-1', name: 'Brinquedos', targetQuantity: 3, collectedQuantity: 1, unit: 'un' }, // Calculado manual no mock
+      { id: 'it-2', name: 'Panetones', targetQuantity: 2, collectedQuantity: 0, unit: 'un' }
     ],
-    beneficiaryFamilyIds: ['fam-001', 'fam-002']
-  },
-  {
-    id: 'camp-002',
-    title: 'Cesta Básica Outubro',
-    description: 'Arrecadação mensal de alimentos não perecíveis.',
-    type: CampaignType.MONTHLY_BASKET,
-    startDate: new Date('2024-10-01').toISOString(),
-    endDate: new Date('2024-10-31').toISOString(),
-    isActive: true,
-    items: [
-      { id: 'it-3', name: 'Arroz 5kg', targetQuantity: 20, collectedQuantity: 20, unit: 'un' },
-      { id: 'it-4', name: 'Feijão 1kg', targetQuantity: 40, collectedQuantity: 35, unit: 'un' }
-    ],
-    beneficiaryFamilyIds: ['fam-001']
+    beneficiaryFamilyIds: ['fam-001', 'fam-002'],
+    packageIds: [] // Campanha antiga ou personalizada sem pacote
   }
 ];
 
 const STORAGE_KEYS = {
   FAMILIES: 'lar_matilde_families',
-  CAMPAIGNS: 'lar_matilde_campaigns'
+  CAMPAIGNS: 'lar_matilde_campaigns',
+  PACKAGES: 'lar_matilde_packages'
 };
 
 export const StorageService = {
@@ -92,6 +113,34 @@ export const StorageService = {
     localStorage.setItem(STORAGE_KEYS.FAMILIES, JSON.stringify(filtered));
   },
 
+  // Packages CRUD
+  getPackages: (): Package[] => {
+    const data = localStorage.getItem(STORAGE_KEYS.PACKAGES);
+    if (!data) {
+      localStorage.setItem(STORAGE_KEYS.PACKAGES, JSON.stringify(MOCK_PACKAGES));
+      return MOCK_PACKAGES;
+    }
+    return JSON.parse(data);
+  },
+
+  savePackage: (pkg: Package): void => {
+    const packages = StorageService.getPackages();
+    const index = packages.findIndex(p => p.id === pkg.id);
+    if (index >= 0) {
+      packages[index] = pkg;
+    } else {
+      packages.push(pkg);
+    }
+    localStorage.setItem(STORAGE_KEYS.PACKAGES, JSON.stringify(packages));
+  },
+
+  deletePackage: (id: string): void => {
+    const packages = StorageService.getPackages();
+    const filtered = packages.filter(p => p.id !== id);
+    localStorage.setItem(STORAGE_KEYS.PACKAGES, JSON.stringify(filtered));
+  },
+
+  // Campaigns CRUD
   getCampaigns: (): Campaign[] => {
     const data = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
     let campaigns: Campaign[] = [];
@@ -103,18 +152,19 @@ export const StorageService = {
       campaigns = JSON.parse(data);
     }
 
-    // Lógica para desativar automaticamente campanhas vencidas
     const today = new Date().toISOString().split('T')[0];
     let hasUpdates = false;
 
     const updatedCampaigns = campaigns.map(c => {
-      // Garante que beneficiaryFamilyIds exista (para dados antigos)
       if (!c.beneficiaryFamilyIds) {
           c.beneficiaryFamilyIds = [];
           hasUpdates = true;
       }
+      if (!c.packageIds) {
+          c.packageIds = [];
+          hasUpdates = true;
+      }
 
-      // Se está ativa mas a data de término é anterior a hoje, desativa
       if (c.isActive && c.endDate < today) {
         hasUpdates = true;
         return { ...c, isActive: false };
@@ -148,14 +198,11 @@ export const StorageService = {
           const campaign = campaigns[campaignIndex];
           const today = new Date().toISOString().split('T')[0];
           
-          // Se a campanha estiver inativa e a data final for menor que hoje,
-          // não permite reativar (é uma campanha expirada)
           if (!campaign.isActive && campaign.endDate < today) {
             return;
           }
 
           campaign.isActive = !campaign.isActive;
-          
           localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(campaigns));
       }
   }

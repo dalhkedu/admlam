@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { Campaign, CampaignItem, CampaignType, Family } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Campaign, CampaignItem, CampaignType, Family, Package } from '../types';
 import { generateCampaignDescription } from '../services/geminiService';
-import { Plus, Gift, Check, Play, Square, Wand2, Loader2, Trash2, Copy, Filter, Lock, Users, FileText, X, Calendar, Edit2 } from 'lucide-react';
+import { Plus, Gift, Check, Play, Square, Wand2, Loader2, Trash2, Copy, Filter, Lock, Users, FileText, X, Calendar, Edit2, Box } from 'lucide-react';
 
 interface CampaignListProps {
   campaigns: Campaign[];
   families: Family[];
+  packages: Package[];
   onAddCampaign: (campaign: Campaign) => void;
   onUpdateCampaign: (campaign: Campaign) => void;
   onToggleStatus: (id: string) => void;
@@ -20,10 +21,11 @@ const emptyCampaign: Campaign = {
   endDate: '',
   isActive: true,
   items: [],
-  beneficiaryFamilyIds: []
+  beneficiaryFamilyIds: [],
+  packageIds: []
 };
 
-export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families, onAddCampaign, onUpdateCampaign, onToggleStatus }) => {
+export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families, packages, onAddCampaign, onUpdateCampaign, onToggleStatus }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<Campaign>(emptyCampaign);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -40,6 +42,67 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
 
   const getTodayDate = () => new Date().toISOString().split('T')[0];
 
+  // Efeito para recalcular itens quando pacotes ou famílias mudam dentro do modal
+  useEffect(() => {
+    if (isModalOpen) {
+      recalculateItems();
+    }
+  }, [formData.beneficiaryFamilyIds, formData.packageIds]);
+
+  const recalculateItems = () => {
+    // Se não houver pacotes selecionados, não mexe nos itens (permite edição manual ou mantém estado anterior)
+    if (!formData.packageIds || formData.packageIds.length === 0) return;
+
+    const familyCount = (formData.beneficiaryFamilyIds || []).length;
+    if (familyCount === 0) {
+      // Se nenhuma família, zera metas mas mantem itens
+       setFormData(prev => ({
+         ...prev,
+         items: prev.items.map(i => ({...i, targetQuantity: 0}))
+       }));
+       return;
+    }
+
+    // Mapa para agregar itens de pacotes diferentes (ex: dois pacotes tem arroz)
+    const itemsMap = new Map<string, {name: string, unit: string, qty: number}>();
+
+    // Itera sobre os pacotes selecionados
+    formData.packageIds.forEach(pkgId => {
+      const pkg = packages.find(p => p.id === pkgId);
+      if (pkg) {
+        pkg.items.forEach(pkgItem => {
+          // Chave única composta por nome e unidade para evitar duplicatas erradas
+          const key = `${pkgItem.name}-${pkgItem.unit}`;
+          const current = itemsMap.get(key) || { name: pkgItem.name, unit: pkgItem.unit, qty: 0 };
+          
+          // Quantidade total = Qtd no pacote * Qtd Famílias
+          current.qty += (pkgItem.quantity * familyCount);
+          itemsMap.set(key, current);
+        });
+      }
+    });
+
+    // Converte de volta para CampaignItem, tentando preservar collectedQuantity se o item já existia
+    setFormData(prev => {
+       const newItems: CampaignItem[] = [];
+       
+       itemsMap.forEach((val, key) => {
+          // Tenta encontrar um item existente com mesmo nome e unidade para manter o 'collectedQuantity'
+          const existingItem = prev.items.find(i => i.name === val.name && i.unit === val.unit);
+          
+          newItems.push({
+            id: existingItem ? existingItem.id : crypto.randomUUID(),
+            name: val.name,
+            unit: val.unit as any,
+            targetQuantity: val.qty,
+            collectedQuantity: existingItem ? existingItem.collectedQuantity : 0
+          });
+       });
+
+       return { ...prev, items: newItems };
+    });
+  };
+
   const handleOpenModal = () => {
     const today = getTodayDate();
     const nextMonth = new Date();
@@ -50,14 +113,14 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
       id: crypto.randomUUID(),
       startDate: today,
       endDate: nextMonth.toISOString().split('T')[0],
-      items: [{ id: crypto.randomUUID(), name: '', targetQuantity: 0, collectedQuantity: 0, unit: 'un' }],
-      beneficiaryFamilyIds: [] // Começa sem famílias
+      items: [],
+      beneficiaryFamilyIds: [],
+      packageIds: []
     });
     setIsModalOpen(true);
   };
 
   const handleEditCampaign = (campaign: Campaign) => {
-    // Clona o objeto para evitar mutação direta e prepara para edição
     setFormData(JSON.parse(JSON.stringify(campaign)));
     setIsModalOpen(true);
   };
@@ -67,20 +130,20 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
     const nextMonth = new Date();
     nextMonth.setDate(nextMonth.getDate() + 30);
 
-    // Cria uma cópia profunda da campanha
     const clonedCampaign: Campaign = {
       ...campaign,
-      id: crypto.randomUUID(), // Novo ID
-      title: `${campaign.title} (Cópia)`, // Sugestão de título
-      startDate: today, // Reseta data de início para hoje
-      endDate: nextMonth.toISOString().split('T')[0], // +30 dias
-      isActive: true, // Começa ativa
+      id: crypto.randomUUID(),
+      title: `${campaign.title} (Cópia)`,
+      startDate: today,
+      endDate: nextMonth.toISOString().split('T')[0],
+      isActive: true,
       items: campaign.items.map(item => ({
         ...item,
-        id: crypto.randomUUID(), // Novos IDs para os itens
-        collectedQuantity: 0 // Reseta quantidade coletada
+        id: crypto.randomUUID(),
+        collectedQuantity: 0
       })),
-      beneficiaryFamilyIds: [...(campaign.beneficiaryFamilyIds || [])] // Copia os vínculos
+      beneficiaryFamilyIds: [...(campaign.beneficiaryFamilyIds || [])],
+      packageIds: [...(campaign.packageIds || [])]
     };
 
     setFormData(clonedCampaign);
@@ -93,8 +156,8 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
   };
 
   const handleGenerateDescription = async () => {
-    if (!formData.title || formData.items.length === 0) {
-      alert("Preencha o título e adicione itens antes de gerar a descrição.");
+    if (!formData.title) {
+      alert("Preencha o título antes de gerar a descrição.");
       return;
     }
     
@@ -102,23 +165,6 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
     const desc = await generateCampaignDescription(formData.title, formData.type, formData.items);
     setFormData(prev => ({ ...prev, description: desc }));
     setIsGenerating(false);
-  };
-
-  const addItem = () => {
-    setFormData(prev => ({
-      ...prev,
-      items: [...prev.items, { id: crypto.randomUUID(), name: '', targetQuantity: 0, collectedQuantity: 0, unit: 'un' }]
-    }));
-  };
-
-  const removeItem = (id: string) => {
-    setFormData(prev => ({ ...prev, items: prev.items.filter(i => i.id !== id) }));
-  };
-
-  const updateItem = (index: number, field: keyof CampaignItem, value: any) => {
-    const newItems = [...formData.items];
-    newItems[index] = { ...newItems[index], [field]: value };
-    setFormData(prev => ({ ...prev, items: newItems }));
   };
 
   const toggleFamilySelection = (familyId: string) => {
@@ -138,18 +184,27 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
       const activeFamilies = families.filter(f => f.status === 'Ativo');
       
       if (currentIds.length === activeFamilies.length) {
-        return { ...prev, beneficiaryFamilyIds: [] }; // Desmarcar todos
+        return { ...prev, beneficiaryFamilyIds: [] }; 
       } else {
-        return { ...prev, beneficiaryFamilyIds: activeFamilies.map(f => f.id) }; // Marcar todos ativos
+        return { ...prev, beneficiaryFamilyIds: activeFamilies.map(f => f.id) }; 
       }
     });
+  };
+
+  const togglePackageSelection = (pkgId: string) => {
+     setFormData(prev => {
+        const ids = prev.packageIds || [];
+        if (ids.includes(pkgId)) {
+           return { ...prev, packageIds: ids.filter(id => id !== pkgId) };
+        } else {
+           return { ...prev, packageIds: [...ids, pkgId] };
+        }
+     });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validação de data retroativa apenas se for uma nova campanha ou se a data mudou para o passado
-    // Mas permitimos manter datas antigas se estiver apenas editando outros campos de uma campanha em andamento
     const today = getTodayDate();
     if (formData.startDate < today && !campaigns.some(c => c.id === formData.id)) {
       alert("A data de início não pode ser anterior a hoje para novas campanhas.");
@@ -176,7 +231,6 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
         ? campaign.isActive 
         : !campaign.isActive;
     
-    // Filtro de Data
     const campaignStartDate = campaign.startDate.split('T')[0];
     const campaignEndDate = campaign.endDate.split('T')[0];
     
@@ -186,7 +240,6 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
     return matchesType && matchesStatus && matchesStartDate && matchesEndDate;
   });
 
-  // Helpers para o Modal de Detalhes
   const getLinkedFamilies = (campaign: Campaign) => {
     return families.filter(f => (campaign.beneficiaryFamilyIds || []).includes(f.id));
   };
@@ -270,10 +323,6 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
             </button>
           )}
         </div>
-        
-        <div className="hidden xl:block ml-auto text-sm text-slate-400 whitespace-nowrap">
-          Mostrando {filteredCampaigns.length} de {campaigns.length}
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -306,8 +355,8 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                   </div>
 
                   <div className="space-y-3">
-                    <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Metas</h4>
-                    {campaign.items.map(item => {
+                    <h4 className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Metas (Total)</h4>
+                    {campaign.items.length > 0 ? campaign.items.slice(0, 4).map(item => {
                       const percent = item.targetQuantity > 0 ? (item.collectedQuantity / item.targetQuantity) * 100 : 0;
                       return (
                         <div key={item.id} className="text-sm">
@@ -323,7 +372,12 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                           </div>
                         </div>
                       );
-                    })}
+                    }) : (
+                       <p className="text-xs text-slate-400 italic">Nenhum item calculado.</p>
+                    )}
+                    {campaign.items.length > 4 && (
+                       <p className="text-xs text-center text-slate-500">+ {campaign.items.length - 4} outros itens</p>
+                    )}
                   </div>
                 </div>
                 
@@ -331,7 +385,6 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                   <button
                     onClick={() => handleOpenDetails(campaign)}
                     className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors mr-2"
-                    title="Ver detalhes dos beneficiários"
                   >
                     <FileText size={16} />
                     Detalhes
@@ -345,7 +398,6 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                         ? 'text-slate-300 cursor-not-allowed' 
                         : 'text-slate-600 hover:text-blue-600'
                     }`}
-                    title={!campaign.isActive ? "Reative a campanha para editar" : "Editar campanha"}
                   >
                     <Edit2 size={16} />
                     Editar
@@ -354,15 +406,13 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                   <button
                     onClick={() => handleCloneCampaign(campaign)}
                     className="flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-blue-600 transition-colors"
-                    title="Duplicar esta campanha"
                   >
                     <Copy size={16} />
                     Clonar
                   </button>
                   
-                  {/* Lógica de exibição do botão de status */}
                   {!campaign.isActive && isExpired ? (
-                    <span className="flex items-center gap-2 text-sm font-medium ml-auto text-slate-400 cursor-not-allowed" title="Campanha expirada não pode ser reativada">
+                    <span className="flex items-center gap-2 text-sm font-medium ml-auto text-slate-400 cursor-not-allowed">
                       <Lock size={16}/> Finalizada
                     </span>
                   ) : (
@@ -381,9 +431,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
           })
         ) : (
           <div className="col-span-1 md:col-span-2 xl:col-span-3 py-12 text-center bg-white rounded-xl border border-slate-200 border-dashed">
-            <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-              <Gift className="text-slate-400" />
-            </div>
+            <Gift className="mx-auto w-12 h-12 text-slate-400 mb-3" />
             <h3 className="text-lg font-medium text-slate-800">Nenhuma campanha encontrada</h3>
             <p className="text-slate-500">Tente alterar os filtros para ver mais resultados.</p>
           </div>
@@ -431,15 +479,11 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                   <input 
                     type="date"
                     required
-                    // Apenas restringe data mínima se for uma NOVA campanha. Se for edição, permite manter a data antiga.
                     min={!campaigns.some(c => c.id === formData.id) ? getTodayDate() : undefined} 
                     value={formData.startDate.toString().split('T')[0]}
                     onChange={e => setFormData({...formData, startDate: e.target.value})}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
-                  {!campaigns.some(c => c.id === formData.id) && 
-                    <p className="text-xs text-slate-400 mt-1">Apenas datas futuras ou hoje.</p>
-                  }
                 </div>
               </div>
 
@@ -458,7 +502,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                 </div>
                 <textarea 
                   required
-                  rows={4}
+                  rows={3}
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
@@ -466,57 +510,41 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                 />
               </div>
 
+              {/* SELEÇÃO DE PACOTES */}
               <div className="border-t border-slate-100 pt-4">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-semibold text-slate-700">Itens Necessários</h3>
-                  <button type="button" onClick={addItem} className="text-sm text-emerald-600 font-medium hover:underline flex items-center gap-1">
-                    <Plus size={14} /> Adicionar Item
-                  </button>
-                </div>
-                
-                <div className="space-y-3">
-                  {formData.items.map((item, index) => (
-                    <div key={item.id} className="flex gap-2 items-center">
-                      <input 
-                        placeholder="Nome do Item"
-                        required
-                        className="flex-1 border border-slate-300 rounded px-3 py-2 text-sm"
-                        value={item.name}
-                        onChange={e => updateItem(index, 'name', e.target.value)}
-                      />
-                      <input 
-                        type="number"
-                        placeholder="Qtd"
-                        required
-                        className="w-20 border border-slate-300 rounded px-3 py-2 text-sm"
-                        value={item.targetQuantity || ''}
-                        onChange={e => updateItem(index, 'targetQuantity', parseInt(e.target.value))}
-                      />
-                       <select
-                        className="w-20 border border-slate-300 rounded px-2 py-2 text-sm bg-white text-slate-700"
-                        value={item.unit}
-                        onChange={e => updateItem(index, 'unit', e.target.value)}
-                       >
-                         <option value="un">un</option>
-                         <option value="kg">kg</option>
-                         <option value="lt">lt</option>
-                       </select>
-                       <button 
-                        type="button"
-                        onClick={() => removeItem(item.id)}
-                        className="text-slate-400 hover:text-red-500 p-2"
-                       >
-                         <Trash2 size={16} />
-                       </button>
+                <h3 className="font-semibold text-slate-700 mb-3">1. Selecione os Pacotes (Cestas)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {packages.length > 0 ? (
+                    packages.map(pkg => (
+                      <label key={pkg.id} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                         (formData.packageIds || []).includes(pkg.id) 
+                         ? 'bg-indigo-50 border-indigo-300' 
+                         : 'bg-white border-slate-200 hover:bg-slate-50'
+                      }`}>
+                         <input 
+                          type="checkbox"
+                          checked={(formData.packageIds || []).includes(pkg.id)}
+                          onChange={() => togglePackageSelection(pkg.id)}
+                          className="mt-1 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                         />
+                         <div>
+                            <div className="font-medium text-sm text-slate-800">{pkg.name}</div>
+                            <div className="text-xs text-slate-500">{pkg.items.length} itens</div>
+                         </div>
+                      </label>
+                    ))
+                  ) : (
+                    <div className="col-span-full p-4 text-center bg-slate-50 rounded border border-slate-200 text-sm text-slate-500">
+                      Nenhum pacote cadastrado. Vá em "Pacotes" para criar modelos.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 
-               {/* Seção de Vínculo de Famílias */}
+               {/* SELEÇÃO DE FAMÍLIAS */}
                <div className="border-t border-slate-100 pt-4">
                 <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-semibold text-slate-700">Vincular Famílias</h3>
+                  <h3 className="font-semibold text-slate-700">2. Vincular Famílias (Beneficiários)</h3>
                   <button 
                     type="button" 
                     onClick={toggleAllFamilies}
@@ -525,7 +553,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                     Alternar Todos
                   </button>
                 </div>
-                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-2 bg-slate-50">
+                <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-2 bg-slate-50">
                   {families.filter(f => f.status === 'Ativo').length > 0 ? (
                     families.filter(f => f.status === 'Ativo').map(family => (
                       <label key={family.id} className="flex items-center gap-3 p-2 bg-white rounded border border-slate-200 hover:bg-slate-50 cursor-pointer">
@@ -547,8 +575,38 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                   )}
                 </div>
                 <p className="text-xs text-slate-500 mt-2">
-                  Selecionado: {(formData.beneficiaryFamilyIds || []).length} famílias.
+                  Total Selecionado: {(formData.beneficiaryFamilyIds || []).length} famílias.
                 </p>
+              </div>
+
+              {/* LISTA DE ITENS CALCULADOS (READ ONLY) */}
+              <div className="border-t border-slate-100 pt-4">
+                 <h3 className="font-semibold text-slate-700 mb-2 flex items-center gap-2">
+                   <Box size={16} className="text-slate-400"/> 
+                   Resumo de Itens Necessários
+                 </h3>
+                 <p className="text-xs text-slate-500 mb-3">
+                   Calculado automaticamente: (Itens dos Pacotes) x (Famílias Selecionadas)
+                 </p>
+                 
+                 <div className="bg-slate-50 rounded-lg border border-slate-200 p-3 max-h-48 overflow-y-auto">
+                    {formData.items.length > 0 ? (
+                      <ul className="space-y-2">
+                        {formData.items.map(item => (
+                          <li key={item.id} className="flex justify-between text-sm">
+                            <span className="text-slate-700">{item.name}</span>
+                            <span className="font-medium text-slate-900 bg-white px-2 py-0.5 rounded border border-slate-200">
+                              {item.targetQuantity} {item.unit}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-slate-400 text-center py-2">
+                        Selecione pacotes e famílias para gerar a lista.
+                      </p>
+                    )}
+                 </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
@@ -586,7 +644,6 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Resumo Demográfico */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-center">
                     <div className="text-2xl font-bold text-blue-700">
@@ -594,96 +651,78 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                     </div>
                     <div className="text-sm text-blue-600 font-medium">Famílias Vinculadas</div>
                  </div>
-                 <div className="bg-amber-50 p-4 rounded-lg border border-amber-100 text-center">
-                    <div className="text-2xl font-bold text-amber-700">
-                      {getLinkedFamilies(selectedCampaignForDetails).reduce((acc, f) => acc + f.numberOfAdults, 0)}
+                 <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 text-center">
+                    <div className="text-2xl font-bold text-indigo-700">
+                      {selectedCampaignForDetails.packageIds?.length || 0}
                     </div>
-                    <div className="text-sm text-amber-600 font-medium">Total de Adultos</div>
+                    <div className="text-sm text-indigo-600 font-medium">Tipos de Pacotes</div>
                  </div>
                  <div className="bg-emerald-50 p-4 rounded-lg border border-emerald-100 text-center">
                     <div className="text-2xl font-bold text-emerald-700">
-                      {getLinkedFamilies(selectedCampaignForDetails).reduce((acc, f) => acc + f.children.length, 0)}
+                      {selectedCampaignForDetails.items.length}
                     </div>
-                    <div className="text-sm text-emerald-600 font-medium">Total de Crianças</div>
+                    <div className="text-sm text-emerald-600 font-medium">Itens Totais</div>
                  </div>
               </div>
 
-              {/* Lista Detalhada (Lógica para mostrar Crianças se Natal/Páscoa, ou Lista de Famílias para Cesta) */}
               <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
-                <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 font-semibold text-slate-700 flex justify-between items-center">
-                  <span>Lista de Necessidades</span>
-                  <span className="text-xs font-normal text-slate-500 bg-white px-2 py-1 rounded border border-slate-200">
-                     {selectedCampaignForDetails.type === CampaignType.CHRISTMAS || selectedCampaignForDetails.type === CampaignType.EASTER 
-                      ? 'Foco: Crianças' 
-                      : 'Foco: Cesta Familiar'}
-                  </span>
+                <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 font-semibold text-slate-700">
+                  Lista de Beneficiários
                 </div>
-                
-                <div className="overflow-x-auto">
+                <div className="max-h-60 overflow-y-auto">
                   <table className="w-full text-left text-sm">
                     <thead className="bg-white border-b border-slate-200">
-                      {selectedCampaignForDetails.type === CampaignType.CHRISTMAS ? (
-                         // Cabeçalho Específico para Natal (Tamanhos)
-                         <tr>
-                           <th className="px-4 py-3 font-medium text-slate-600">Criança</th>
-                           <th className="px-4 py-3 font-medium text-slate-600">Idade/Sexo</th>
-                           <th className="px-4 py-3 font-medium text-slate-600">Roupa</th>
-                           <th className="px-4 py-3 font-medium text-slate-600">Sapato</th>
-                           <th className="px-4 py-3 font-medium text-slate-600">Responsável</th>
-                         </tr>
-                      ) : (
-                         // Cabeçalho Padrão (Famílias)
-                         <tr>
-                           <th className="px-4 py-3 font-medium text-slate-600">Responsável</th>
-                           <th className="px-4 py-3 font-medium text-slate-600">Composição</th>
-                           <th className="px-4 py-3 font-medium text-slate-600">Estimativa</th>
-                         </tr>
-                      )}
+                       <tr>
+                         <th className="px-4 py-3 font-medium text-slate-600">Responsável</th>
+                         <th className="px-4 py-3 font-medium text-slate-600">Composição</th>
+                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white">
-                      {getLinkedFamilies(selectedCampaignForDetails).length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="p-8 text-center text-slate-400">
-                            Nenhuma família vinculada a esta campanha.
+                      {getLinkedFamilies(selectedCampaignForDetails).map(family => (
+                        <tr key={family.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 font-medium text-slate-800">
+                            {family.responsibleName}
+                          </td>
+                          <td className="px-4 py-3 text-slate-600">
+                            {family.numberOfAdults} Adultos, {family.children.length} Crianças
                           </td>
                         </tr>
-                      ) : (
-                        selectedCampaignForDetails.type === CampaignType.CHRISTMAS ? (
-                          // Renderização para Natal: Lista Plana de Crianças
-                          getLinkedFamilies(selectedCampaignForDetails).flatMap(family => 
-                            family.children.map(child => (
-                              <tr key={child.id} className="hover:bg-slate-50">
-                                <td className="px-4 py-3 font-medium text-slate-800">{child.name}</td>
-                                <td className="px-4 py-3 text-slate-600">{child.age} anos ({child.gender})</td>
-                                <td className="px-4 py-3 font-bold text-indigo-600">{child.clothingSize}</td>
-                                <td className="px-4 py-3 font-bold text-indigo-600">{child.shoeSize}</td>
-                                <td className="px-4 py-3 text-slate-500 text-xs">
-                                  {family.responsibleName} <br/> (ID: {family.id.slice(-4)})
-                                </td>
-                              </tr>
-                            ))
-                          )
-                        ) : (
-                          // Renderização para Outros: Lista de Famílias
-                          getLinkedFamilies(selectedCampaignForDetails).map(family => {
-                             const totalMembers = family.numberOfAdults + family.children.length;
-                             return (
-                              <tr key={family.id} className="hover:bg-slate-50">
-                                <td className="px-4 py-3 font-medium text-slate-800">
-                                  {family.responsibleName}
-                                  <div className="text-xs text-slate-400">{family.phone}</div>
-                                </td>
-                                <td className="px-4 py-3 text-slate-600">
-                                  {family.numberOfAdults} Adultos, {family.children.length} Crianças
-                                </td>
-                                <td className="px-4 py-3 text-emerald-600 font-medium">
-                                  1 Cesta ({totalMembers} pessoas)
-                                </td>
-                              </tr>
-                             );
-                          })
-                        )
-                      )}
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+               <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 font-semibold text-slate-700">
+                  Resumo de Arrecadação
+                </div>
+                 <div className="max-h-60 overflow-y-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-white border-b border-slate-200">
+                       <tr>
+                         <th className="px-4 py-3 font-medium text-slate-600">Item</th>
+                         <th className="px-4 py-3 font-medium text-slate-600">Meta</th>
+                         <th className="px-4 py-3 font-medium text-slate-600">Coletado</th>
+                         <th className="px-4 py-3 font-medium text-slate-600">Status</th>
+                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 bg-white">
+                      {selectedCampaignForDetails.items.map(item => {
+                        const isComplete = item.collectedQuantity >= item.targetQuantity;
+                        return (
+                          <tr key={item.id} className="hover:bg-slate-50">
+                            <td className="px-4 py-3 font-medium text-slate-800">{item.name}</td>
+                            <td className="px-4 py-3 text-slate-600">{item.targetQuantity} {item.unit}</td>
+                            <td className="px-4 py-3 text-slate-600">{item.collectedQuantity} {item.unit}</td>
+                            <td className="px-4 py-3">
+                               <span className={`px-2 py-1 rounded-full text-xs font-bold ${isComplete ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                                 {isComplete ? 'Completo' : 'Pendente'}
+                               </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

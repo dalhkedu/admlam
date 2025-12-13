@@ -1,3 +1,4 @@
+
 export enum ClothingSize {
   P = 'P',
   M = 'M',
@@ -51,6 +52,21 @@ export interface CampaignItem {
   unit: 'kg' | 'un' | 'lt' | 'pc';
 }
 
+// Novos tipos para Pacotes
+export interface PackageItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: 'kg' | 'un' | 'lt' | 'pc';
+}
+
+export interface Package {
+  id: string;
+  name: string;
+  description?: string;
+  items: PackageItem[];
+}
+
 export interface Campaign {
   id: string;
   title: string;
@@ -59,8 +75,9 @@ export interface Campaign {
   startDate: string;
   endDate: string;
   isActive: boolean;
-  items: CampaignItem[];
+  items: CampaignItem[]; // Itens calculados (cache do total necessário)
+  packageIds: string[]; // IDs dos pacotes vinculados
   beneficiaryFamilyIds: string[]; // IDs das famílias vinculadas
 }
 
-export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS';
+export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS' | 'PACKAGES';
