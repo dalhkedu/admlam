@@ -1,4 +1,4 @@
-import { Family, Campaign, CampaignType, ClothingSize, Package, DistributionEvent, EventFrequency, OrganizationLocation, LocationType, OrganizationBankInfo } from '../types';
+import { Family, Campaign, CampaignType, ClothingSize, Package, DistributionEvent, EventFrequency, OrganizationLocation, LocationType, OrganizationBankInfo, OrganizationSettings } from '../types';
 
 // Initial Mock Data
 const MOCK_FAMILIES: Family[] = [
@@ -20,6 +20,7 @@ const MOCK_FAMILIES: Family[] = [
         { id: 'hist-1', date: '2023-01-15T10:00:00.000Z', type: 'Cadastro', description: 'Cadastro inicial realizado no sistema.', author: 'Admin' }
     ],
     registrationDate: new Date('2023-01-15').toISOString(),
+    lastReviewDate: new Date('2024-01-15').toISOString(), // Data recente
     isPregnant: true,
     pregnancyDueDate: '2025-02-15',
     children: [
@@ -66,6 +67,7 @@ const MOCK_FAMILIES: Family[] = [
         { id: 'hist-3', date: '2023-06-15T09:00:00.000Z', type: 'Atualização', description: 'Endereço atualizado.', author: 'Admin' }
     ],
     registrationDate: new Date('2023-03-10').toISOString(),
+    lastReviewDate: new Date('2023-03-10').toISOString(),
     isPregnant: false,
     children: [
       { 
@@ -152,7 +154,10 @@ const MOCK_EVENTS: DistributionEvent[] = [
     isParkingPaid: false,
     frequency: EventFrequency.YEARLY,
     linkedCampaignIds: ['camp-001'],
-    status: 'Agendado'
+    status: 'Agendado',
+    isDeliveryEvent: true,
+    isRegistrationReview: false,
+    deliveredFamilyIds: []
   },
   {
     id: 'evt-002',
@@ -167,7 +172,10 @@ const MOCK_EVENTS: DistributionEvent[] = [
     isParkingPaid: false,
     frequency: EventFrequency.MONTHLY,
     linkedCampaignIds: [],
-    status: 'Agendado'
+    status: 'Agendado',
+    isDeliveryEvent: true,
+    isRegistrationReview: true,
+    deliveredFamilyIds: []
   }
 ];
 
@@ -201,6 +209,10 @@ const MOCK_BANK_INFO: OrganizationBankInfo = {
     ]
 };
 
+const MOCK_SETTINGS: OrganizationSettings = {
+    registrationValidityMonths: 12 // Default 1 ano
+};
+
 const STORAGE_KEYS = {
   FAMILIES: 'lar_matilde_families',
   CAMPAIGNS: 'lar_matilde_campaigns',
@@ -208,21 +220,94 @@ const STORAGE_KEYS = {
   EVENTS: 'lar_matilde_events',
   LOCATIONS: 'lar_matilde_locations',
   BANK_INFO: 'lar_matilde_bank_info',
+  SETTINGS: 'lar_matilde_settings',
   API_KEY: 'lar_matilde_api_key'
+};
+
+// Helper function to check and suspend expired families
+const checkFamilyExpirations = (families: Family[], campaigns: Campaign[]): { families: Family[], campaigns: Campaign[] } => {
+    const settingsStr = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    const settings: OrganizationSettings = settingsStr ? JSON.parse(settingsStr) : MOCK_SETTINGS;
+    
+    const today = new Date();
+    let familiesUpdated = false;
+    let campaignsUpdated = false;
+
+    const updatedFamilies = families.map(f => {
+        if (f.status === 'Ativo') {
+            const lastReview = new Date(f.lastReviewDate || f.registrationDate);
+            const expirationDate = new Date(lastReview);
+            expirationDate.setMonth(expirationDate.getMonth() + settings.registrationValidityMonths);
+
+            if (today > expirationDate) {
+                // Expired
+                familiesUpdated = true;
+                const newHistory = [
+                    {
+                        id: crypto.randomUUID(),
+                        date: today.toISOString(),
+                        type: 'Suspensão' as const,
+                        description: 'Suspensão automática: Validade do cadastro expirada. Necessário revisão cadastral.',
+                        author: 'Sistema'
+                    },
+                    ...(f.history || [])
+                ];
+                return { ...f, status: 'Suspenso' as const, history: newHistory };
+            }
+        }
+        return f;
+    });
+
+    // If any family was suspended, we need to remove them from active campaigns
+    let updatedCampaigns = [...campaigns];
+    if (familiesUpdated) {
+        const suspendedIds = updatedFamilies.filter(f => f.status === 'Suspenso').map(f => f.id);
+        
+        updatedCampaigns = campaigns.map(c => {
+             const hasSuspended = c.beneficiaryFamilyIds.some(id => suspendedIds.includes(id));
+             if (hasSuspended) {
+                 campaignsUpdated = true;
+                 return {
+                     ...c,
+                     beneficiaryFamilyIds: c.beneficiaryFamilyIds.filter(id => !suspendedIds.includes(id))
+                 };
+             }
+             return c;
+        });
+    }
+
+    return {
+        families: familiesUpdated ? updatedFamilies : families,
+        campaigns: campaignsUpdated ? updatedCampaigns : campaigns
+    };
 };
 
 export const StorageService = {
   getFamilies: (): Family[] => {
     const data = localStorage.getItem(STORAGE_KEYS.FAMILIES);
-    if (!data) {
-      localStorage.setItem(STORAGE_KEYS.FAMILIES, JSON.stringify(MOCK_FAMILIES));
-      return MOCK_FAMILIES;
+    let families = data ? JSON.parse(data) : MOCK_FAMILIES;
+    
+    // Also get campaigns to unlink if suspended
+    const campaignsData = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
+    let campaigns = campaignsData ? JSON.parse(campaignsData) : MOCK_CAMPAIGNS;
+
+    // Run expiration logic
+    const result = checkFamilyExpirations(families, campaigns);
+
+    // Save if changes happened during read
+    if (result.families !== families) {
+        localStorage.setItem(STORAGE_KEYS.FAMILIES, JSON.stringify(result.families));
+        families = result.families;
     }
-    return JSON.parse(data);
+    if (result.campaigns !== campaigns) {
+        localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(result.campaigns));
+    }
+
+    return families;
   },
 
   saveFamily: (family: Family): void => {
-    const families = StorageService.getFamilies();
+    const families = StorageService.getFamilies(); // This triggers expiration check first
     const index = families.findIndex(f => f.id === family.id);
     if (index >= 0) {
       families[index] = family;
@@ -236,6 +321,58 @@ export const StorageService = {
     const families = StorageService.getFamilies();
     const filtered = families.filter(f => f.id !== id);
     localStorage.setItem(STORAGE_KEYS.FAMILIES, JSON.stringify(filtered));
+  },
+
+  // Logic to register a delivery
+  registerDelivery: (eventId: string, familyId: string, campaignId: string, campaignTitle: string): void => {
+      const events = StorageService.getEvents();
+      const eventIndex = events.findIndex(e => e.id === eventId);
+      if (eventIndex < 0) return;
+
+      const event = events[eventIndex];
+      const today = new Date().toISOString();
+
+      // 1. Update Event (Add to delivered list)
+      if (!event.deliveredFamilyIds) event.deliveredFamilyIds = [];
+      if (!event.deliveredFamilyIds.includes(familyId)) {
+          event.deliveredFamilyIds.push(familyId);
+          localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(events));
+      }
+
+      // 2. Update Family (History + Review Date if applicable)
+      const families = StorageService.getFamilies();
+      const familyIndex = families.findIndex(f => f.id === familyId);
+      if (familyIndex >= 0) {
+          const family = families[familyIndex];
+          
+          // History Entry
+          const historyEntry = {
+              id: crypto.randomUUID(),
+              date: today,
+              type: 'Entrega' as const,
+              description: `Recebimento de doação no evento "${event.title}" (Campanha: ${campaignTitle}).`,
+              author: 'Admin'
+          };
+          
+          family.history = [historyEntry, ...(family.history || [])];
+
+          // Registration Review Logic
+          if (event.isRegistrationReview) {
+              family.lastReviewDate = today;
+              if (family.status !== 'Ativo') {
+                  family.status = 'Ativo';
+                  family.history.unshift({
+                      id: crypto.randomUUID(),
+                      date: today,
+                      type: 'Reativação' as const,
+                      description: `Reativação automática via presença no evento "${event.title}".`,
+                      author: 'Sistema'
+                  });
+              }
+          }
+
+          localStorage.setItem(STORAGE_KEYS.FAMILIES, JSON.stringify(families));
+      }
   },
 
   // Packages CRUD
@@ -398,6 +535,22 @@ export const StorageService = {
 
   saveBankInfo: (info: OrganizationBankInfo): void => {
     localStorage.setItem(STORAGE_KEYS.BANK_INFO, JSON.stringify(info));
+  },
+
+  // Settings
+  getSettings: (): OrganizationSettings => {
+      const data = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+      if(!data) {
+          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(MOCK_SETTINGS));
+          return MOCK_SETTINGS;
+      }
+      return JSON.parse(data);
+  },
+
+  saveSettings: (settings: OrganizationSettings): void => {
+      localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+      // Trigger expiration check immediately to reflect setting changes
+      StorageService.getFamilies();
   },
 
   // Settings / API Key

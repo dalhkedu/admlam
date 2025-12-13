@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storage';
-import { OrganizationLocation, LocationType, OrganizationBankInfo, BankAccount, PixKey } from '../types';
-import { Key, Save, AlertTriangle, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark, Star, Copy } from 'lucide-react';
+import { OrganizationLocation, LocationType, OrganizationBankInfo, BankAccount, PixKey, OrganizationSettings } from '../types';
+import { Key, Save, AlertTriangle, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark, Star, Copy, Clock } from 'lucide-react';
 
 const emptyLocation: OrganizationLocation = {
   id: '',
@@ -27,8 +27,10 @@ const emptyAccount: BankAccount = {
 export const Settings: React.FC = () => {
   const [apiKey, setApiKey] = useState('');
   const [status, setStatus] = useState<'idle' | 'saved'>('idle');
-  const [bankStatus, setBankStatus] = useState<'idle' | 'saved'>('idle');
   
+  // Organization Settings
+  const [orgSettings, setOrgSettings] = useState<OrganizationSettings>({ registrationValidityMonths: 12 });
+
   // Location States
   const [locations, setLocations] = useState<OrganizationLocation[]>([]);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
@@ -58,12 +60,16 @@ export const Settings: React.FC = () => {
     setApiKey(StorageService.getApiKey());
     setLocations(StorageService.getLocations());
     setBankInfo(StorageService.getBankInfo());
+    setOrgSettings(StorageService.getSettings());
   }, []);
 
   // API Key Handlers
   const handleSaveApiKey = (e: React.FormEvent) => {
     e.preventDefault();
     StorageService.saveApiKey(apiKey);
+    // Salvar Settings Tambem
+    StorageService.saveSettings(orgSettings);
+    
     setStatus('saved');
     setTimeout(() => setStatus('idle'), 3000);
   };
@@ -242,66 +248,94 @@ export const Settings: React.FC = () => {
         <p className="text-slate-500">Gerencie as integrações e dados da organização.</p>
       </div>
 
-      {/* Seção API Key */}
+      {/* Seção API Key e Configs Gerais */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div className="flex items-start gap-4 mb-6">
-          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
-            <Key size={24} />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">Integração com IA (Google Gemini)</h3>
-            <p className="text-sm text-slate-500 mt-1">
-              Para utilizar os recursos de preenchimento automático, geração de textos e sugestão de pacotes,
-              você precisa fornecer uma chave de API do Google Gemini.
-            </p>
-          </div>
-        </div>
+        <form onSubmit={handleSaveApiKey} className="space-y-6">
+            
+            {/* Configuração de Validade */}
+            <div>
+                <div className="flex items-start gap-4 mb-4">
+                    <div className="p-3 bg-orange-50 text-orange-600 rounded-lg">
+                        <Clock size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">Validade do Cadastro</h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                        Defina por quanto tempo o cadastro de uma família permanece ativo antes de exigir revisão.
+                        Famílias com cadastro vencido serão suspensas e removidas de campanhas.
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-slate-700">Período de Validade:</label>
+                    <input 
+                        type="number"
+                        min="1"
+                        required
+                        value={orgSettings.registrationValidityMonths}
+                        onChange={e => setOrgSettings({...orgSettings, registrationValidityMonths: parseInt(e.target.value) || 12})}
+                        className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-center text-slate-900 bg-white"
+                    />
+                    <span className="text-sm text-slate-600">meses</span>
+                </div>
+            </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6 flex gap-3">
-          <AlertTriangle className="text-amber-600 shrink-0" size={20} />
-          <div className="text-sm text-amber-800">
-            <p className="font-medium mb-1">Atenção Admin:</p>
-            <p>
-              A chave será salva apenas no armazenamento local deste navegador. 
-              Obtenha sua chave gratuitamente em <a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" className="underline font-semibold hover:text-amber-900">Google AI Studio</a>.
-              Recomendamos o modelo <strong>Gemini 2.5 Flash</strong>.
-            </p>
-          </div>
-        </div>
+            <hr className="border-slate-100" />
 
-        <form onSubmit={handleSaveApiKey} className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-sm font-medium text-slate-700">Google AI Studio API Key</label>
-            <input 
-              type="password"
-              placeholder="Cole sua chave API aqui (começa com Alza...)"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-sm text-slate-900 bg-white"
-            />
-          </div>
-          
-          <div className="flex justify-end pt-2">
-            <button 
-              type="submit"
-              className={`
-                flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-white transition-all
-                ${status === 'saved' ? 'bg-green-600' : 'bg-emerald-600 hover:bg-emerald-700'}
-              `}
-            >
-              {status === 'saved' ? (
-                <>
-                  <CheckCircle size={18} />
-                  Salvo com Sucesso
-                </>
-              ) : (
-                <>
-                  <Save size={18} />
-                  Salvar Configuração
-                </>
-              )}
-            </button>
-          </div>
+            {/* Configuração IA */}
+            <div>
+                 <div className="flex items-start gap-4 mb-4">
+                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
+                        <Key size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">Integração com IA</h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                        Chave de API do Google Gemini para recursos inteligentes.
+                        </p>
+                    </div>
+                </div>
+                
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex gap-3">
+                    <AlertTriangle className="text-amber-600 shrink-0" size={16} />
+                    <div className="text-xs text-amber-800">
+                         Obtenha sua chave em <a href="https://aistudio.google.com/" target="_blank" rel="noreferrer" className="underline font-semibold hover:text-amber-900">Google AI Studio</a>.
+                    </div>
+                </div>
+
+                <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700">API Key</label>
+                    <input 
+                    type="password"
+                    placeholder="Cole sua chave API aqui..."
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="w-full border border-slate-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-sm text-slate-900 bg-white"
+                    />
+                </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+                <button 
+                type="submit"
+                className={`
+                    flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-white transition-all
+                    ${status === 'saved' ? 'bg-green-600' : 'bg-emerald-600 hover:bg-emerald-700'}
+                `}
+                >
+                {status === 'saved' ? (
+                    <>
+                    <CheckCircle size={18} />
+                    Salvo com Sucesso
+                    </>
+                ) : (
+                    <>
+                    <Save size={18} />
+                    Salvar Configurações
+                    </>
+                )}
+                </button>
+            </div>
         </form>
       </div>
 

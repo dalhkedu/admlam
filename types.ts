@@ -33,7 +33,7 @@ export interface Child {
 export interface FamilyHistoryEntry {
   id: string;
   date: string; // ISO String
-  type: 'Cadastro' | 'Atualização' | 'Suspensão' | 'Reativação' | 'Ocorrência' | 'Outro';
+  type: 'Cadastro' | 'Atualização' | 'Suspensão' | 'Reativação' | 'Ocorrência' | 'Entrega' | 'Outro';
   description: string;
   author?: string; // Quem fez a alteração (simulado por enquanto)
 }
@@ -58,6 +58,7 @@ export interface Family {
 
   children: Child[];
   registrationDate: string; // ISO String
+  lastReviewDate?: string; // Data da última revisão cadastral (ISO String)
   
   isPregnant?: boolean;
   pregnancyDueDate?: string;
@@ -135,6 +136,11 @@ export interface DistributionEvent {
   isParkingPaid: boolean;
   parkingFee?: number;
 
+  // Logística de Entrega e Revisão
+  isDeliveryEvent: boolean; // É um evento de entrega de doações?
+  isRegistrationReview: boolean; // Presença conta como revisão de cadastro?
+  deliveredFamilyIds: string[]; // Lista de IDs de famílias que já retiraram a doação/fizeram check-in
+
   frequency: EventFrequency;
   linkedCampaignIds: string[];
   status: 'Agendado' | 'Realizado' | 'Cancelado';
@@ -178,6 +184,10 @@ export interface BankAccount {
 
 export interface OrganizationBankInfo {
   accounts: BankAccount[];
+}
+
+export interface OrganizationSettings {
+    registrationValidityMonths: number; // Quantidade de meses que o cadastro é válido
 }
 
 export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS' | 'PACKAGES' | 'EVENTS' | 'SETTINGS';

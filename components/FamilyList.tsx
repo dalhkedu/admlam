@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Family, Child, ClothingSize, FamilyHistoryEntry } from '../types';
 import { parseFamilyData } from '../services/geminiService';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, User, X, Users as UsersIcon, Wand2, Loader2, Sparkles, Search, MapPin, Baby, CreditCard, GraduationCap, AlertCircle, Calendar, FileText, History, Clock, Send, Ban } from 'lucide-react';
+import { StorageService } from '../services/storage';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, User, X, Users as UsersIcon, Wand2, Loader2, Sparkles, Search, MapPin, Baby, CreditCard, GraduationCap, AlertCircle, Calendar, FileText, History, Clock, Send, Ban, RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface FamilyListProps {
   families: Family[];
@@ -40,6 +41,7 @@ const emptyFamily: Family = {
   children: [],
   history: [],
   registrationDate: '',
+  lastReviewDate: '',
   isPregnant: false,
   pregnancyDueDate: '',
   cardId: ''
@@ -103,6 +105,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
 
   // Form State
   const [formData, setFormData] = useState<Family>(emptyFamily);
+  const [shouldRenewRegistration, setShouldRenewRegistration] = useState(false);
 
   // History Note State
   const [newHistoryNote, setNewHistoryNote] = useState('');
@@ -119,6 +122,14 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
     uf: ''
   });
   const [isLoadingCep, setIsLoadingCep] = useState(false);
+
+  // Get Validity Settings
+  const [validityMonths, setValidityMonths] = useState(12);
+
+  useEffect(() => {
+      const settings = StorageService.getSettings();
+      setValidityMonths(settings.registrationValidityMonths);
+  }, []);
 
   const filteredFamilies = families.filter(family => {
     const matchesSearch = family.responsibleName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -138,6 +149,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
     setAddressDetails({ logradouro: '', bairro: '', localidade: '', uf: '' });
     setActiveTab('DATA'); // Reset to data tab
     setNewHistoryNote('');
+    setShouldRenewRegistration(false);
 
     if (family) {
       setEditingFamily(family);
@@ -146,16 +158,18 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
       // Generate next Card ID suggestion
       const nextId = families.length + 1;
       const year = new Date().getFullYear().toString().slice(-2);
+      const today = new Date().toISOString();
       
       setEditingFamily(null);
       setFormData({
         ...emptyFamily,
         id: crypto.randomUUID(),
         cardId: `${String(nextId).padStart(3, '0')}/${year}`,
-        registrationDate: new Date().toISOString(),
+        registrationDate: today,
+        lastReviewDate: today,
         children: [],
         history: [
-            { id: crypto.randomUUID(), date: new Date().toISOString(), type: 'Cadastro', description: 'Família registrada no sistema.', author: 'Sistema' }
+            { id: crypto.randomUUID(), date: today, type: 'Cadastro', description: 'Família registrada no sistema.', author: 'Sistema' }
         ]
       });
     }
@@ -207,22 +221,42 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
             return;
         }
     }
+    
+    let updatedFamily = { ...formData };
+    const today = new Date().toISOString();
 
     if (editingFamily) {
+        // Renewal Logic
+        if (shouldRenewRegistration) {
+            updatedFamily.lastReviewDate = today;
+            if(updatedFamily.status === 'Suspenso' || updatedFamily.status === 'Inativo') {
+                updatedFamily.status = 'Ativo';
+            }
+            updatedFamily.history = [...(updatedFamily.history || []), {
+                id: crypto.randomUUID(),
+                date: today,
+                type: 'Reativação' as const,
+                description: 'Revisão cadastral realizada. Validade renovada.',
+                author: 'Sistema'
+            }];
+        }
+
         // Detect Status Change to auto-log
-        if (editingFamily.status !== formData.status) {
+        if (editingFamily.status !== updatedFamily.status && !shouldRenewRegistration) { // Don't double log if already logged by renewal
             const statusLog: FamilyHistoryEntry = {
                 id: crypto.randomUUID(),
-                date: new Date().toISOString(),
-                type: formData.status === 'Suspenso' ? 'Suspensão' : formData.status === 'Ativo' ? 'Reativação' : 'Atualização',
-                description: `Status alterado de ${editingFamily.status} para ${formData.status}.`,
+                date: today,
+                type: updatedFamily.status === 'Suspenso' ? 'Suspensão' : updatedFamily.status === 'Ativo' ? 'Reativação' : 'Atualização',
+                description: `Status alterado de ${editingFamily.status} para ${updatedFamily.status}.`,
                 author: 'Sistema'
             };
-            formData.history = [...(formData.history || []), statusLog];
+            updatedFamily.history = [...(updatedFamily.history || []), statusLog];
         }
-      onUpdateFamily(formData);
+      onUpdateFamily(updatedFamily);
     } else {
-      onAddFamily(formData);
+      // New Family is always reviewed today
+      updatedFamily.lastReviewDate = today;
+      onAddFamily(updatedFamily);
     }
     setIsModalOpen(false);
   };
@@ -286,12 +320,14 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
           
           const nextId = families.length + 1;
           const year = new Date().getFullYear().toString().slice(-2);
+          const today = new Date().toISOString();
 
           const newFamily: Family = {
               ...emptyFamily,
               id: crypto.randomUUID(),
               cardId: `${String(nextId).padStart(3, '0')}/${year}`,
-              registrationDate: new Date().toISOString(),
+              registrationDate: today,
+              lastReviewDate: today,
               responsibleName: result.responsibleName || '',
               rg: result.rg || '',
               cpf: result.cpf || '',
@@ -320,7 +356,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                   notes: c.notes || ''
               })),
               history: [
-                { id: crypto.randomUUID(), date: new Date().toISOString(), type: 'Cadastro', description: 'Família registrada via IA.', author: 'Sistema' }
+                { id: crypto.randomUUID(), date: today, type: 'Cadastro', description: 'Família registrada via IA.', author: 'Sistema' }
               ]
           };
           
@@ -344,6 +380,13 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
           case 'Inativo': return <span className="px-2 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">Inativo</span>;
           case 'Suspenso': return <span className="px-2 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700 flex items-center gap-1"><Ban size={10}/> Suspenso</span>;
       }
+  };
+
+  // Helper to calculate expiration date
+  const getExpirationDate = (family: Family) => {
+      const lastReview = new Date(family.lastReviewDate || family.registrationDate);
+      lastReview.setMonth(lastReview.getMonth() + validityMonths);
+      return lastReview;
   };
 
   return (
@@ -405,13 +448,17 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
             <tr>
               <th className="px-6 py-4 font-semibold text-slate-600 text-sm">Carteirinha</th>
               <th className="px-6 py-4 font-semibold text-slate-600 text-sm">Responsável</th>
-              <th className="px-6 py-4 font-semibold text-slate-600 text-sm hidden md:table-cell">Endereço</th>
+              <th className="px-6 py-4 font-semibold text-slate-600 text-sm hidden md:table-cell">Validade</th>
               <th className="px-6 py-4 font-semibold text-slate-600 text-sm text-center">Status</th>
               <th className="px-6 py-4 font-semibold text-slate-600 text-sm text-right">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredFamilies.map(family => (
+            {filteredFamilies.map(family => {
+                const expiration = getExpirationDate(family);
+                const isNearExpiration = expiration.getTime() - new Date().getTime() < (30 * 24 * 60 * 60 * 1000); // 30 dias
+                
+                return (
               <React.Fragment key={family.id}>
                 <tr className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4 text-sm font-mono font-medium text-indigo-600">
@@ -428,7 +475,15 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                     </div>
                     <div className="text-xs text-slate-500 md:hidden">{family.address}</div>
                   </td>
-                  <td className="px-6 py-4 hidden md:table-cell text-slate-600 text-sm">{family.address}</td>
+                  <td className="px-6 py-4 hidden md:table-cell text-sm">
+                      <div className={`flex items-center gap-1 ${
+                          family.status === 'Suspenso' ? 'text-red-500 font-bold' :
+                          isNearExpiration ? 'text-amber-600 font-medium' : 'text-slate-600'
+                      }`}>
+                          {expiration.toLocaleDateString()}
+                          {isNearExpiration && family.status === 'Ativo' && <AlertTriangle size={14} />}
+                      </div>
+                  </td>
                   <td className="px-6 py-4 text-center">
                     {getStatusBadge(family.status)}
                   </td>
@@ -484,7 +539,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                                     {family.email && <p><span className="font-medium">Email:</span> {family.email}</p>}
                                     <p><span className="font-medium">Endereço:</span> {family.address}</p>
                                     <p><span className="font-medium">Pessoas na casa:</span> {family.numberOfAdults + family.children.length}</p>
-                                    <p><span className="font-medium">Data Cadastro:</span> {new Date(family.registrationDate).toLocaleDateString()}</p>
+                                    <p><span className="font-medium">Última Revisão:</span> {family.lastReviewDate ? new Date(family.lastReviewDate).toLocaleDateString() : 'N/A'}</p>
                                 </div>
                             </div>
                         </div>
@@ -552,7 +607,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                   </tr>
                 )}
               </React.Fragment>
-            ))}
+            )}})}
           </tbody>
         </table>
         {filteredFamilies.length === 0 && (
@@ -650,6 +705,28 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                         <h3 className="text-base font-semibold text-emerald-800 bg-emerald-50 p-2 rounded mb-4 flex items-center gap-2">
                            <User size={18}/> 1. Responsável / Assistido
                         </h3>
+                        
+                        {/* Aviso de Renovação */}
+                        {editingFamily && (
+                             <div className="mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200 flex items-center justify-between">
+                                 <div>
+                                     <p className="text-sm font-medium text-slate-700">Última Revisão: {new Date(formData.lastReviewDate || formData.registrationDate).toLocaleDateString()}</p>
+                                     <p className="text-xs text-slate-500">Expira em: {getExpirationDate(formData).toLocaleDateString()}</p>
+                                 </div>
+                                 <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded border border-emerald-200 hover:bg-emerald-50 transition-colors">
+                                     <input 
+                                        type="checkbox"
+                                        checked={shouldRenewRegistration}
+                                        onChange={e => setShouldRenewRegistration(e.target.checked)}
+                                        className="w-4 h-4 text-emerald-600 rounded"
+                                     />
+                                     <div className="flex items-center gap-1 text-sm font-bold text-emerald-700">
+                                         <RefreshCw size={14} /> Renovar Validade
+                                     </div>
+                                 </label>
+                             </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="md:col-span-3 space-y-1">
                                <label className="text-xs font-medium text-slate-600">Nome Completo</label>
