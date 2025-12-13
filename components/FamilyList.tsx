@@ -34,6 +34,7 @@ const emptyFamily: Family = {
   spouseName: '',
   address: '',
   phone: '',
+  email: '',
   numberOfAdults: 1,
   status: 'Ativo',
   children: [],
@@ -254,6 +255,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
               spouseName: result.spouseName || '',
               address: result.address || '',
               phone: result.phone || '',
+              email: result.email || '',
               numberOfAdults: result.numberOfAdults || 1,
               isPregnant: result.isPregnant || false,
               pregnancyDueDate: result.pregnancyDueDate || '',
@@ -413,6 +415,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                                 </h4>
                                 <div className="text-sm space-y-1 text-slate-600">
                                     <p><span className="font-medium">Telefone:</span> {family.phone}</p>
+                                    {family.email && <p><span className="font-medium">Email:</span> {family.email}</p>}
                                     <p><span className="font-medium">Endereço:</span> {family.address}</p>
                                     <p><span className="font-medium">Pessoas na casa:</span> {family.numberOfAdults + family.children.length}</p>
                                     <p><span className="font-medium">Data Cadastro:</span> {new Date(family.registrationDate).toLocaleDateString()}</p>
@@ -650,6 +653,16 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                             className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                         />
                     </div>
+                     <div className="space-y-1">
+                        <label className="text-xs font-medium text-slate-600">E-mail (Opcional)</label>
+                        <input 
+                            type="email" 
+                            value={formData.email || ''} 
+                            onChange={e => setFormData({...formData, email: e.target.value})}
+                            className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
+                            placeholder="exemplo@email.com"
+                        />
+                    </div>
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-600">Pessoas na Casa (Adultos)</label>
                         <input 
@@ -679,7 +692,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                       </div>
                     </div>
                     
-                    <div className="md:col-span-3 space-y-1">
+                    <div className="md:col-span-4 space-y-1">
                         <label className="text-xs font-medium text-slate-600">Endereço Completo</label>
                         <input 
                             required

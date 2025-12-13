@@ -42,6 +42,7 @@ export interface Family {
   
   address: string;
   phone: string;
+  email?: string; // Campo opcional de contato
   numberOfAdults: number; // Pessoas na casa (adultos)
   
   status: 'Ativo' | 'Inativo';

@@ -13,6 +13,7 @@ const MOCK_FAMILIES: Family[] = [
     spouseName: 'João da Silva',
     address: 'Rua das Flores, 123, Jd. Esperança',
     phone: '(11) 99999-1234',
+    email: 'maria.silva@exemplo.com',
     numberOfAdults: 2,
     status: 'Ativo',
     registrationDate: new Date('2023-01-15').toISOString(),

@@ -123,6 +123,7 @@ export const parseFamilyData = async (rawText: string): Promise<Partial<Family>>
       - spouseName (string): Nome do cônjuge se houver.
       - address (string): Endereço completo.
       - phone (string)
+      - email (string): Se disponível.
       - numberOfAdults (number): Pessoas na casa (exceto crianças).
       - isPregnant (boolean)
       - pregnancyDueDate (string YYYY-MM-DD)

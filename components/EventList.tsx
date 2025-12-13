@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DistributionEvent, EventFrequency, Campaign } from '../types';
-import { Plus, Calendar, MapPin, Clock, DollarSign, Edit2, Trash2, X, Link, Check, Repeat, Copy, Search, Loader2, Filter } from 'lucide-react';
+import { Plus, Calendar, MapPin, Clock, DollarSign, Edit2, Trash2, X, Link, Check, Repeat, Copy, Search, Loader2, Filter, AlertTriangle } from 'lucide-react';
 
 interface EventListProps {
   events: DistributionEvent[];
@@ -77,7 +77,8 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
         id: crypto.randomUUID(),
         title: `${event.title} (Cópia)`,
         date: getTodayDate(),
-        status: 'Agendado' as const
+        status: 'Agendado' as const,
+        linkedCampaignIds: [] // Reseta vínculos ao clonar para forçar revalidação de regras
     };
     setFormData(cloned);
     setEditingId(null);
@@ -156,6 +157,28 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
   });
 
   const sortedEvents = [...filteredEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  // Lógica para filtrar campanhas disponíveis no modal
+  const getAvailableCampaigns = () => {
+      return campaigns.filter(campaign => {
+          const isLinked = (formData.linkedCampaignIds || []).includes(campaign.id);
+          
+          // Regra 1: Se já está vinculada, mostra sempre (para permitir desvincular ou ver histórico)
+          if (isLinked) return true;
+
+          // Regra 2: Campanha deve estar Ativa para novos vínculos
+          if (!campaign.isActive) return false;
+
+          // Regra 3: Data de fim da campanha deve ser ANTERIOR ou IGUAL à data do evento
+          // (Não posso distribuir algo de uma campanha que ainda vai durar meses no futuro, teoricamente)
+          if (campaign.endDate > formData.date) return false;
+
+          return true;
+      });
+  };
+
+  const availableCampaigns = getAvailableCampaigns();
+  const hasHiddenCampaigns = campaigns.length > availableCampaigns.length;
 
   return (
     <div className="space-y-6">
@@ -366,7 +389,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700">Data</label>
+                    <label className="text-sm font-medium text-slate-700">Data do Evento</label>
                     <input 
                         type="date"
                         required
@@ -525,13 +548,15 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
 
               <div className="border-t border-slate-100 pt-4">
                   <h3 className="font-semibold text-slate-700 mb-2 flex items-center gap-2">
-                      <Link size={16} /> Vincular Campanhas (Origem das Doações)
+                      <Link size={16} /> Vincular Campanhas (Opcional)
                   </h3>
+                  <p className="text-xs text-slate-500 mb-3">
+                    Selecione campanhas ativas que terminam antes ou na data do evento ({new Date(formData.date).toLocaleDateString()}).
+                  </p>
+                  
                   <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-2 bg-slate-50">
-                      {campaigns.filter(c => c.isActive || (formData.linkedCampaignIds || []).includes(c.id)).length > 0 ? (
-                          campaigns
-                            .filter(c => c.isActive || (formData.linkedCampaignIds || []).includes(c.id))
-                            .map(campaign => (
+                      {availableCampaigns.length > 0 ? (
+                          availableCampaigns.map(campaign => (
                               <label key={campaign.id} className={`flex items-center gap-3 p-2 bg-white rounded border cursor-pointer ${
                                   !campaign.isActive ? 'border-slate-100 bg-slate-50 opacity-75' : 'border-slate-200 hover:bg-slate-50'
                               }`}>
@@ -543,12 +568,23 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                                   />
                                   <div className="text-sm text-slate-700">
                                       {campaign.title}
-                                      {!campaign.isActive && <span className="text-xs text-slate-400 ml-1">(Encerrada)</span>}
+                                      <span className="text-xs text-slate-400 ml-2">
+                                          (Fim: {new Date(campaign.endDate).toLocaleDateString()})
+                                      </span>
+                                      {!campaign.isActive && <span className="text-xs text-slate-400 ml-1 font-semibold">[Inativa]</span>}
                                   </div>
                               </label>
                           ))
                       ) : (
-                          <p className="text-sm text-slate-400 text-center py-2">Nenhuma campanha ativa disponível.</p>
+                          <div className="p-4 text-center">
+                              <p className="text-sm text-slate-500 italic">Nenhuma campanha disponível.</p>
+                              {hasHiddenCampaigns && (
+                                  <p className="text-xs text-amber-600 mt-1 flex items-center justify-center gap-1">
+                                      <AlertTriangle size={12} />
+                                      Algumas campanhas foram ocultadas pois terminam após a data do evento ou já estão concluídas.
+                                  </p>
+                              )}
+                          </div>
                       )}
                   </div>
               </div>
