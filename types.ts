@@ -60,6 +60,7 @@ export interface Campaign {
   endDate: string;
   isActive: boolean;
   items: CampaignItem[];
+  beneficiaryFamilyIds: string[]; // IDs das famílias vinculadas
 }
 
 export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS';

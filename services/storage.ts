@@ -41,7 +41,8 @@ const MOCK_CAMPAIGNS: Campaign[] = [
     items: [
       { id: 'it-1', name: 'Brinquedos', targetQuantity: 50, collectedQuantity: 12, unit: 'un' },
       { id: 'it-2', name: 'Panetones', targetQuantity: 25, collectedQuantity: 5, unit: 'un' }
-    ]
+    ],
+    beneficiaryFamilyIds: ['fam-001', 'fam-002']
   },
   {
     id: 'camp-002',
@@ -54,7 +55,8 @@ const MOCK_CAMPAIGNS: Campaign[] = [
     items: [
       { id: 'it-3', name: 'Arroz 5kg', targetQuantity: 20, collectedQuantity: 20, unit: 'un' },
       { id: 'it-4', name: 'Feijão 1kg', targetQuantity: 40, collectedQuantity: 35, unit: 'un' }
-    ]
+    ],
+    beneficiaryFamilyIds: ['fam-001']
   }
 ];
 
@@ -92,11 +94,39 @@ export const StorageService = {
 
   getCampaigns: (): Campaign[] => {
     const data = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
+    let campaigns: Campaign[] = [];
+    
     if (!data) {
+      campaigns = MOCK_CAMPAIGNS;
       localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(MOCK_CAMPAIGNS));
-      return MOCK_CAMPAIGNS;
+    } else {
+      campaigns = JSON.parse(data);
     }
-    return JSON.parse(data);
+
+    // Lógica para desativar automaticamente campanhas vencidas
+    const today = new Date().toISOString().split('T')[0];
+    let hasUpdates = false;
+
+    const updatedCampaigns = campaigns.map(c => {
+      // Garante que beneficiaryFamilyIds exista (para dados antigos)
+      if (!c.beneficiaryFamilyIds) {
+          c.beneficiaryFamilyIds = [];
+          hasUpdates = true;
+      }
+
+      // Se está ativa mas a data de término é anterior a hoje, desativa
+      if (c.isActive && c.endDate < today) {
+        hasUpdates = true;
+        return { ...c, isActive: false };
+      }
+      return c;
+    });
+
+    if (hasUpdates) {
+      localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(updatedCampaigns));
+    }
+
+    return updatedCampaigns;
   },
 
   saveCampaign: (campaign: Campaign): void => {
@@ -112,10 +142,21 @@ export const StorageService = {
   
   toggleCampaignStatus: (id: string): void => {
       const campaigns = StorageService.getCampaigns();
-      const campaign = campaigns.find(c => c.id === id);
-      if(campaign) {
+      const campaignIndex = campaigns.findIndex(c => c.id === id);
+      
+      if(campaignIndex >= 0) {
+          const campaign = campaigns[campaignIndex];
+          const today = new Date().toISOString().split('T')[0];
+          
+          // Se a campanha estiver inativa e a data final for menor que hoje,
+          // não permite reativar (é uma campanha expirada)
+          if (!campaign.isActive && campaign.endDate < today) {
+            return;
+          }
+
           campaign.isActive = !campaign.isActive;
-          StorageService.saveCampaign(campaign);
+          
+          localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(campaigns));
       }
   }
 };

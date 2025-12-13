@@ -160,6 +160,8 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                           <span className="font-medium">Total de Membros:</span> {family.numberOfAdults + family.children.length} pessoas
                           <span className="mx-2">•</span>
                           <span className="font-medium">Adultos:</span> {family.numberOfAdults}
+                          <span className="mx-2">•</span>
+                          <span className="font-medium">Cadastro:</span> {new Date(family.registrationDate).toLocaleDateString()}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                           {family.children.map(child => (
@@ -243,11 +245,20 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                   <select 
                     value={formData.status}
                     onChange={e => setFormData({...formData, status: e.target.value as 'Ativo' | 'Inativo'})}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none bg-white transition-all"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-slate-700 transition-all"
                   >
                     <option value="Ativo">Ativo</option>
                     <option value="Inativo">Inativo</option>
                   </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Data Cadastro</label>
+                  <input 
+                    type="text" 
+                    readOnly
+                    value={formData.registrationDate ? new Date(formData.registrationDate).toLocaleDateString() : 'Hoje'}
+                    className="w-full border border-slate-200 bg-slate-100 text-slate-500 rounded-lg px-3 py-2 outline-none cursor-not-allowed"
+                  />
                 </div>
                 <div className="col-span-1 md:col-span-2 space-y-1">
                   <label className="text-sm font-medium text-slate-700">Endereço</label>
@@ -300,7 +311,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                         </div>
                         <div>
                           <select 
-                            className="w-full text-sm border-slate-300 rounded px-2 py-1.5 bg-white"
+                            className="w-full text-sm border-slate-300 rounded px-2 py-1.5 bg-white text-slate-700"
                             value={child.gender}
                             onChange={(e) => updateChild(index, 'gender', e.target.value)}
                           >
@@ -310,7 +321,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                         </div>
                         <div>
                           <select 
-                            className="w-full text-sm border-slate-300 rounded px-2 py-1.5 bg-white"
+                            className="w-full text-sm border-slate-300 rounded px-2 py-1.5 bg-white text-slate-700"
                             value={child.clothingSize}
                             onChange={(e) => updateChild(index, 'clothingSize', e.target.value)}
                           >

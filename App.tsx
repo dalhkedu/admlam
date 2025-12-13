@@ -47,6 +47,11 @@ const App: React.FC = () => {
     setCampaigns(StorageService.getCampaigns());
   };
 
+  const handleUpdateCampaign = (campaign: Campaign) => {
+    StorageService.saveCampaign(campaign);
+    setCampaigns(StorageService.getCampaigns());
+  };
+
   const handleToggleCampaign = (id: string) => {
     StorageService.toggleCampaignStatus(id);
     setCampaigns(StorageService.getCampaigns());
@@ -68,8 +73,9 @@ const App: React.FC = () => {
       {currentView === 'CAMPAIGNS' && (
         <CampaignList 
           campaigns={campaigns}
+          families={families} // Passando as famílias para poder vincular
           onAddCampaign={handleAddCampaign}
-          onUpdateCampaign={() => {}} // Implemented for completeness if needed later
+          onUpdateCampaign={handleUpdateCampaign} 
           onToggleStatus={handleToggleCampaign}
         />
       )}
