@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Campaign, CampaignItem, CampaignType, Family, Package } from '../types';
+import { Campaign, CampaignItem, CampaignType, Family, Package, OrganizationBankInfo } from '../types';
 import { generateCampaignDescription } from '../services/geminiService';
-import { Plus, Gift, Check, Play, Square, Wand2, Loader2, Trash2, Copy, Filter, Lock, Users, FileText, X, Calendar, Edit2, Box, DollarSign } from 'lucide-react';
+import { Plus, Gift, Check, Play, Square, Wand2, Loader2, Trash2, Copy, Filter, Lock, Users, FileText, X, Calendar, Edit2, Box, DollarSign, CreditCard, Wallet } from 'lucide-react';
 
 interface CampaignListProps {
   campaigns: Campaign[];
   families: Family[];
   packages: Package[];
+  bankInfo: OrganizationBankInfo;
   onAddCampaign: (campaign: Campaign) => void;
   onUpdateCampaign: (campaign: Campaign) => void;
   onToggleStatus: (id: string) => void;
@@ -25,7 +26,7 @@ const emptyCampaign: Campaign = {
   packageIds: []
 };
 
-export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families, packages, onAddCampaign, onUpdateCampaign, onToggleStatus }) => {
+export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families, packages, bankInfo, onAddCampaign, onUpdateCampaign, onToggleStatus }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<Campaign>(emptyCampaign);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -106,13 +107,22 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
   };
 
   const calculateTotalCampaignCost = (campaignItems: CampaignItem[]) => {
-      return campaignItems.reduce((acc, item) => acc + (item.targetQuantity * (item.averagePrice || 0)), 0);
+      // Garante que estamos somando (Quantidade Total Necessária * Preço Médio Unitário) de cada item
+      return campaignItems.reduce((acc, item) => {
+          const qty = Number(item.targetQuantity) || 0;
+          const price = Number(item.averagePrice) || 0;
+          return acc + (qty * price);
+      }, 0);
   }
 
   const handleOpenModal = () => {
     const today = getTodayDate();
     const nextMonth = new Date();
     nextMonth.setDate(nextMonth.getDate() + 30);
+    
+    // Auto-select primary account and pix key if available
+    const primaryAccount = bankInfo.accounts.find(a => a.isPrimary) || bankInfo.accounts[0];
+    const primaryPix = primaryAccount?.pixKeys.find(k => k.isPrimary)?.id || primaryAccount?.pixKeys[0]?.id;
 
     setFormData({
       ...emptyCampaign,
@@ -121,7 +131,9 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
       endDate: nextMonth.toISOString().split('T')[0],
       items: [],
       beneficiaryFamilyIds: [],
-      packageIds: []
+      packageIds: [],
+      bankAccountId: primaryAccount?.id,
+      pixKeyId: primaryPix
     });
     setIsModalOpen(true);
   };
@@ -208,6 +220,17 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
      });
   };
 
+  const handleAccountChange = (accountId: string) => {
+    const account = bankInfo.accounts.find(a => a.id === accountId);
+    const primaryPix = account?.pixKeys.find(k => k.isPrimary)?.id || account?.pixKeys[0]?.id;
+    
+    setFormData(prev => ({
+        ...prev,
+        bankAccountId: accountId,
+        pixKeyId: primaryPix // Reset or set default pix key for new account
+    }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -220,6 +243,11 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
     if (formData.endDate < formData.startDate) {
       alert("A data de fim não pode ser anterior à data de início.");
       return;
+    }
+
+    if (!formData.bankAccountId || !formData.pixKeyId) {
+        alert("É necessário vincular uma Conta Bancária e uma Chave Pix à campanha.");
+        return;
     }
 
     const isEditing = campaigns.some(c => c.id === formData.id);
@@ -516,6 +544,49 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                 </div>
               </div>
 
+               {/* SELEÇÃO DE DADOS BANCÁRIOS */}
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <div className="col-span-full font-semibold text-slate-700 flex items-center gap-2 text-sm">
+                        <CreditCard size={16}/> Dados Bancários para Doação
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-sm font-medium text-slate-600">Conta Bancária</label>
+                        <select
+                            required
+                            value={formData.bankAccountId || ''}
+                            onChange={(e) => handleAccountChange(e.target.value)}
+                            className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 outline-none text-sm"
+                        >
+                            <option value="">Selecione uma conta...</option>
+                            {bankInfo.accounts.map(acc => (
+                                <option key={acc.id} value={acc.id}>
+                                    {acc.bankName} - Ag: {acc.agency} CC: {acc.accountNumber}
+                                </option>
+                            ))}
+                        </select>
+                         {bankInfo.accounts.length === 0 && (
+                            <p className="text-xs text-red-500">Nenhuma conta cadastrada nas configurações.</p>
+                        )}
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-sm font-medium text-slate-600">Chave Pix</label>
+                        <select
+                            required
+                            disabled={!formData.bankAccountId}
+                            value={formData.pixKeyId || ''}
+                            onChange={(e) => setFormData({...formData, pixKeyId: e.target.value})}
+                            className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 outline-none text-sm disabled:bg-slate-100 disabled:text-slate-400"
+                        >
+                            <option value="">Selecione a chave Pix...</option>
+                            {bankInfo.accounts.find(a => a.id === formData.bankAccountId)?.pixKeys.map(key => (
+                                <option key={key.id} value={key.id}>
+                                    {key.key} ({key.type})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+               </div>
+
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <label className="text-sm font-medium text-slate-700">Descrição</label>
@@ -710,6 +781,44 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                     <div className="text-sm text-purple-600 font-medium">Itens Totais</div>
                  </div>
               </div>
+
+               {/* Dados Bancários no Relatório */}
+               <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                    <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 font-semibold text-slate-700 flex items-center gap-2">
+                        <CreditCard size={16} /> Dados para Doação
+                    </div>
+                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                         {(() => {
+                            const account = bankInfo.accounts.find(a => a.id === selectedCampaignForDetails.bankAccountId);
+                            const pix = account?.pixKeys.find(k => k.id === selectedCampaignForDetails.pixKeyId);
+                            
+                            if (!account) return <p className="text-slate-500 italic">Conta bancária não encontrada (pode ter sido excluída).</p>;
+                            
+                            return (
+                                <>
+                                    <div>
+                                        <p className="font-semibold text-slate-700 mb-1">Transferência Bancária:</p>
+                                        <p className="text-slate-600">{account.bankName}</p>
+                                        <p className="text-slate-600">Ag: {account.agency} | CC: {account.accountNumber}</p>
+                                        <p className="text-slate-600">{account.accountHolder}</p>
+                                        <p className="text-slate-500 text-xs">CNPJ: {account.cnpj}</p>
+                                    </div>
+                                    <div>
+                                         <p className="font-semibold text-slate-700 mb-1">Pix:</p>
+                                         {pix ? (
+                                             <div className="bg-emerald-50 border border-emerald-100 p-2 rounded text-emerald-800 font-mono">
+                                                 {pix.key}
+                                                 <span className="block text-xs text-emerald-600 mt-1 font-sans">({pix.type})</span>
+                                             </div>
+                                         ) : (
+                                             <p className="text-slate-500 italic">Chave Pix não vinculada.</p>
+                                         )}
+                                    </div>
+                                </>
+                            );
+                         })()}
+                    </div>
+               </div>
 
               <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
                 <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 font-semibold text-slate-700">

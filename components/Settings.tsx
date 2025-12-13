@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storage';
-import { OrganizationLocation, LocationType, OrganizationBankInfo } from '../types';
-import { Key, Save, AlertTriangle, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark } from 'lucide-react';
+import { OrganizationLocation, LocationType, OrganizationBankInfo, BankAccount, PixKey } from '../types';
+import { Key, Save, AlertTriangle, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark, Star, Copy } from 'lucide-react';
 
 const emptyLocation: OrganizationLocation = {
   id: '',
@@ -13,13 +13,15 @@ const emptyLocation: OrganizationLocation = {
   notes: ''
 };
 
-const emptyBankInfo: OrganizationBankInfo = {
-    bankName: '',
-    agency: '',
-    accountNumber: '',
-    pixKey: '',
-    cnpj: '',
-    accountHolder: ''
+const emptyAccount: BankAccount = {
+  id: '',
+  bankName: '',
+  agency: '',
+  accountNumber: '',
+  accountHolder: '',
+  cnpj: '',
+  isPrimary: false,
+  pixKeys: []
 };
 
 export const Settings: React.FC = () => {
@@ -34,7 +36,11 @@ export const Settings: React.FC = () => {
   const [locationForm, setLocationForm] = useState<OrganizationLocation>(emptyLocation);
 
   // Bank Info State
-  const [bankInfo, setBankInfo] = useState<OrganizationBankInfo>(emptyBankInfo);
+  const [bankInfo, setBankInfo] = useState<OrganizationBankInfo>({ accounts: [] });
+  const [isBankModalOpen, setIsBankModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<BankAccount | null>(null);
+  const [accountForm, setAccountForm] = useState<BankAccount>(emptyAccount);
+  const [newPixKey, setNewPixKey] = useState<{key: string, type: PixKey['type']}>({ key: '', type: 'CPF' });
 
   // Address Helper State for Modal
   const [cep, setCep] = useState('');
@@ -60,14 +66,6 @@ export const Settings: React.FC = () => {
     StorageService.saveApiKey(apiKey);
     setStatus('saved');
     setTimeout(() => setStatus('idle'), 3000);
-  };
-
-  // Bank Info Handlers
-  const handleSaveBankInfo = (e: React.FormEvent) => {
-      e.preventDefault();
-      StorageService.saveBankInfo(bankInfo);
-      setBankStatus('saved');
-      setTimeout(() => setBankStatus('idle'), 3000);
   };
 
   // Location Handlers
@@ -103,6 +101,94 @@ export const Settings: React.FC = () => {
       StorageService.saveLocation(locationForm);
       setLocations(StorageService.getLocations());
       setIsLocationModalOpen(false);
+  };
+
+  // Bank Info Handlers
+  const handleOpenBankModal = (account?: BankAccount) => {
+    setNewPixKey({ key: '', type: 'CPF' });
+    if (account) {
+      setEditingAccount(account);
+      setAccountForm(JSON.parse(JSON.stringify(account)));
+    } else {
+      setEditingAccount(null);
+      setAccountForm({
+        ...emptyAccount,
+        id: crypto.randomUUID(),
+        pixKeys: []
+      });
+    }
+    setIsBankModalOpen(true);
+  };
+
+  const handleDeleteAccount = (id: string) => {
+    if (window.confirm("Deseja remover esta conta bancária?")) {
+      const updatedAccounts = bankInfo.accounts.filter(a => a.id !== id);
+      const newInfo = { accounts: updatedAccounts };
+      StorageService.saveBankInfo(newInfo);
+      setBankInfo(newInfo);
+    }
+  };
+
+  const handleSaveAccount = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    let updatedAccounts = [...bankInfo.accounts];
+    
+    if (accountForm.isPrimary) {
+      // If this account is set to primary, uncheck others
+      updatedAccounts = updatedAccounts.map(a => ({ ...a, isPrimary: false }));
+    }
+
+    if (editingAccount) {
+      const index = updatedAccounts.findIndex(a => a.id === accountForm.id);
+      if (index >= 0) {
+        updatedAccounts[index] = accountForm;
+      }
+    } else {
+      // If it's the first account, make it primary by default
+      if (updatedAccounts.length === 0) {
+        accountForm.isPrimary = true;
+      }
+      updatedAccounts.push(accountForm);
+    }
+
+    const newInfo = { accounts: updatedAccounts };
+    StorageService.saveBankInfo(newInfo);
+    setBankInfo(newInfo);
+    setIsBankModalOpen(false);
+  };
+
+  const addPixKey = () => {
+    if (!newPixKey.key) return;
+    
+    const isFirst = accountForm.pixKeys.length === 0;
+    
+    const newKey: PixKey = {
+      id: crypto.randomUUID(),
+      key: newPixKey.key,
+      type: newPixKey.type,
+      isPrimary: isFirst // First key is primary by default
+    };
+
+    setAccountForm(prev => ({
+      ...prev,
+      pixKeys: [...prev.pixKeys, newKey]
+    }));
+    setNewPixKey({ key: '', type: 'CPF' });
+  };
+
+  const removePixKey = (keyId: string) => {
+    setAccountForm(prev => ({
+      ...prev,
+      pixKeys: prev.pixKeys.filter(k => k.id !== keyId)
+    }));
+  };
+
+  const setPrimaryPixKey = (keyId: string) => {
+    setAccountForm(prev => ({
+      ...prev,
+      pixKeys: prev.pixKeys.map(k => ({ ...k, isPrimary: k.id === keyId }))
+    }));
   };
 
   // Address/CEP Logic
@@ -219,112 +305,91 @@ export const Settings: React.FC = () => {
         </form>
       </div>
 
-       {/* Seção Dados Bancários */}
+       {/* Seção Dados Bancários (Nova Lista) */}
        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-        <div className="flex items-start gap-4 mb-6">
-          <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
-            <CreditCard size={24} />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">Dados Bancários & Doações</h3>
-            <p className="text-sm text-slate-500 mt-1">
-              Configure os dados para recebimento de doações via depósito ou Pix.
-            </p>
-          </div>
+        <div className="flex justify-between items-start mb-6">
+            <div className="flex items-start gap-4">
+                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+                    <CreditCard size={24} />
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-slate-800">Contas Bancárias</h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                    Gerencie contas para depósito e chaves Pix.
+                    </p>
+                </div>
+            </div>
+            <button 
+                onClick={() => handleOpenBankModal()}
+                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+            >
+                <Plus size={16} /> Nova Conta
+            </button>
         </div>
 
-        <form onSubmit={handleSaveBankInfo} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                        <Landmark size={14}/> Banco
-                    </label>
-                    <input 
-                        type="text"
-                        placeholder="Ex: Banco do Brasil"
-                        value={bankInfo.bankName}
-                        onChange={(e) => setBankInfo({...bankInfo, bankName: e.target.value})}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
-                    />
-                </div>
-                 <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700">Titular da Conta</label>
-                    <input 
-                        type="text"
-                        placeholder="Ex: Associação Lar Matilde"
-                        value={bankInfo.accountHolder}
-                        onChange={(e) => setBankInfo({...bankInfo, accountHolder: e.target.value})}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
-                    />
-                </div>
-                <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700">CNPJ</label>
-                    <input 
-                        type="text"
-                        placeholder="00.000.000/0001-00"
-                        value={bankInfo.cnpj}
-                        onChange={(e) => setBankInfo({...bankInfo, cnpj: e.target.value})}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white font-mono"
-                    />
-                </div>
-                 <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                        <Wallet size={14}/> Chave Pix (Principal)
-                    </label>
-                    <input 
-                        type="text"
-                        placeholder="CPF, CNPJ, Email ou Aleatória"
-                        value={bankInfo.pixKey}
-                        onChange={(e) => setBankInfo({...bankInfo, pixKey: e.target.value})}
-                        className="w-full border border-emerald-300 bg-emerald-50 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-emerald-900 font-medium"
-                    />
-                </div>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                 <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700">Agência</label>
-                    <input 
-                        type="text"
-                        placeholder="0000-0"
-                        value={bankInfo.agency}
-                        onChange={(e) => setBankInfo({...bankInfo, agency: e.target.value})}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
-                    />
-                </div>
-                 <div className="space-y-1 md:col-span-2">
-                    <label className="text-sm font-medium text-slate-700">Conta Corrente / Poupança</label>
-                    <input 
-                        type="text"
-                        placeholder="000000-0"
-                        value={bankInfo.accountNumber}
-                        onChange={(e) => setBankInfo({...bankInfo, accountNumber: e.target.value})}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
-                    />
-                </div>
-            </div>
+        <div className="space-y-4">
+            {bankInfo.accounts.length > 0 ? (
+                bankInfo.accounts.map(acc => (
+                    <div key={acc.id} className={`border rounded-lg p-4 transition-all ${acc.isPrimary ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 hover:bg-slate-50'}`}>
+                        <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                                <Landmark className="text-slate-500" size={18} />
+                                <h4 className="font-bold text-slate-800">{acc.bankName}</h4>
+                                {acc.isPrimary && (
+                                    <span className="flex items-center gap-1 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">
+                                        <Star size={10} fill="currentColor" /> Principal
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex gap-2">
+                                <button onClick={() => handleOpenBankModal(acc)} className="text-slate-400 hover:text-blue-600 p-1">
+                                    <Edit2 size={16} />
+                                </button>
+                                <button onClick={() => handleDeleteAccount(acc.id)} className="text-slate-400 hover:text-red-600 p-1">
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </div>
 
-            <div className="flex justify-end pt-2">
-            <button 
-              type="submit"
-              className={`
-                flex items-center gap-2 px-6 py-2.5 rounded-lg font-medium text-white transition-all
-                ${bankStatus === 'saved' ? 'bg-green-600' : 'bg-emerald-600 hover:bg-emerald-700'}
-              `}
-            >
-              {bankStatus === 'saved' ? (
-                <>
-                  <CheckCircle size={18} />
-                  Dados Salvos
-                </>
-              ) : (
-                <>
-                  <Save size={18} />
-                  Salvar Dados Bancários
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600 mb-3">
+                            <div>
+                                <span className="block text-xs text-slate-400">Agência / Conta</span>
+                                <span className="font-mono">{acc.agency} / {acc.accountNumber}</span>
+                            </div>
+                            <div>
+                                <span className="block text-xs text-slate-400">Titular</span>
+                                <span>{acc.accountHolder}</span>
+                            </div>
+                        </div>
+
+                        {acc.pixKeys.length > 0 && (
+                            <div className="bg-white/50 rounded border border-slate-100 p-2">
+                                <div className="text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1">
+                                    <Wallet size={12} /> Chaves Pix
+                                </div>
+                                <div className="space-y-1">
+                                    {acc.pixKeys.map(pk => (
+                                        <div key={pk.id} className="flex items-center justify-between text-xs bg-white p-1 rounded border border-slate-100">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono text-slate-800">{pk.key}</span>
+                                                <span className="text-slate-400">({pk.type})</span>
+                                            </div>
+                                            {pk.isPrimary && (
+                                                <span className="text-[10px] text-emerald-600 font-bold px-1.5 py-0.5 bg-emerald-50 rounded">Principal</span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ))
+            ) : (
+                <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-lg border border-slate-100 border-dashed">
+                    Nenhuma conta bancária cadastrada.
+                </div>
+            )}
+        </div>
       </div>
 
       {/* Seção Locais e Endereços */}
@@ -390,6 +455,171 @@ export const Settings: React.FC = () => {
             )}
         </div>
       </div>
+
+       {/* Modal de Conta Bancária */}
+       {isBankModalOpen && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+               <h2 className="text-xl font-bold text-slate-800">{editingAccount ? 'Editar Conta' : 'Nova Conta Bancária'}</h2>
+               <button onClick={() => setIsBankModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                 <X size={24} />
+               </button>
+             </div>
+
+             <form onSubmit={handleSaveAccount} className="p-6 space-y-6">
+               <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <span className="text-sm font-medium text-slate-700">Esta é a conta principal da ONG?</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={accountForm.isPrimary}
+                      onChange={e => setAccountForm({...accountForm, isPrimary: e.target.checked})}
+                      className="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500"
+                    />
+                    <span className="text-sm text-slate-600">Sim, conta principal</span>
+                  </label>
+               </div>
+
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-700">Nome do Banco</label>
+                      <input 
+                          required
+                          placeholder="Ex: Banco do Brasil"
+                          value={accountForm.bankName}
+                          onChange={e => setAccountForm({...accountForm, bankName: e.target.value})}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
+                      />
+                  </div>
+                  <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-700">CNPJ Titular</label>
+                      <input 
+                          value={accountForm.cnpj}
+                          onChange={e => setAccountForm({...accountForm, cnpj: e.target.value})}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white font-mono"
+                          placeholder="00.000.000/0001-00"
+                      />
+                  </div>
+                  <div className="md:col-span-2 space-y-1">
+                      <label className="text-sm font-medium text-slate-700">Nome do Titular</label>
+                      <input 
+                          required
+                          value={accountForm.accountHolder}
+                          onChange={e => setAccountForm({...accountForm, accountHolder: e.target.value})}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
+                      />
+                  </div>
+                  <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-700">Agência</label>
+                      <input 
+                          required
+                          value={accountForm.agency}
+                          onChange={e => setAccountForm({...accountForm, agency: e.target.value})}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
+                      />
+                  </div>
+                  <div className="space-y-1">
+                      <label className="text-sm font-medium text-slate-700">Conta</label>
+                      <input 
+                          required
+                          value={accountForm.accountNumber}
+                          onChange={e => setAccountForm({...accountForm, accountNumber: e.target.value})}
+                          className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
+                      />
+                  </div>
+               </div>
+
+               {/* Seção de Chaves Pix Interna */}
+               <div className="border-t border-slate-100 pt-4">
+                  <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                    <Wallet size={18} className="text-emerald-600"/> Chaves Pix desta Conta
+                  </h3>
+                  
+                  <div className="flex gap-2 mb-3">
+                    <select 
+                      value={newPixKey.type}
+                      onChange={e => setNewPixKey({...newPixKey, type: e.target.value as any})}
+                      className="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-900 outline-none"
+                    >
+                      <option value="CPF">CPF</option>
+                      <option value="CNPJ">CNPJ</option>
+                      <option value="Email">Email</option>
+                      <option value="Telefone">Telefone</option>
+                      <option value="Aleatória">Aleatória</option>
+                    </select>
+                    <input 
+                      placeholder="Chave Pix"
+                      value={newPixKey.key}
+                      onChange={e => setNewPixKey({...newPixKey, key: e.target.value})}
+                      className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none text-slate-900 bg-white"
+                    />
+                    <button 
+                      type="button"
+                      onClick={addPixKey}
+                      disabled={!newPixKey.key}
+                      className="bg-emerald-600 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      Adicionar
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                    {accountForm.pixKeys.length > 0 ? (
+                      accountForm.pixKeys.map(pk => (
+                        <div key={pk.id} className="flex items-center justify-between bg-white p-2 rounded border border-slate-200">
+                          <div className="flex items-center gap-3">
+                            <input 
+                              type="radio"
+                              name="primaryPixKey"
+                              checked={pk.isPrimary}
+                              onChange={() => setPrimaryPixKey(pk.id)}
+                              className="text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                              title="Marcar como chave principal"
+                            />
+                            <div>
+                              <div className="font-mono text-sm text-slate-800">{pk.key}</div>
+                              <div className="text-xs text-slate-500">{pk.type}</div>
+                            </div>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => removePixKey(pk.id)}
+                            className="text-slate-400 hover:text-red-500"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center text-sm text-slate-400">Nenhuma chave Pix adicionada.</p>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    * Selecione a chave principal clicando no botão de seleção circular.
+                  </p>
+               </div>
+
+               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <button 
+                  type="button" 
+                  onClick={() => setIsBankModalOpen(false)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition-colors font-medium"
+                >
+                  Salvar Conta
+                </button>
+              </div>
+
+             </form>
+           </div>
+         </div>
+       )}
 
        {/* Modal de Local */}
        {isLocationModalOpen && (

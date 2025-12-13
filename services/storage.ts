@@ -124,7 +124,9 @@ const MOCK_CAMPAIGNS: Campaign[] = [
       { id: 'it-2', name: 'Panetones', targetQuantity: 2, collectedQuantity: 0, unit: 'un', averagePrice: 15.00 }
     ],
     beneficiaryFamilyIds: ['fam-001', 'fam-002'],
-    packageIds: [] 
+    packageIds: [],
+    bankAccountId: 'acc-001',
+    pixKeyId: 'pix-1'
   }
 ];
 
@@ -170,12 +172,21 @@ const MOCK_LOCATIONS: OrganizationLocation[] = [
 ];
 
 const MOCK_BANK_INFO: OrganizationBankInfo = {
-    bankName: 'Banco do Brasil',
-    agency: '0001-X',
-    accountNumber: '12345-6',
-    pixKey: '12.345.678/0001-90',
-    cnpj: '12.345.678/0001-90',
-    accountHolder: 'Associação Lar Assistencial Matilde'
+    accounts: [
+      {
+        id: 'acc-001',
+        bankName: 'Banco do Brasil',
+        agency: '0001-X',
+        accountNumber: '12345-6',
+        accountHolder: 'Associação Lar Assistencial Matilde',
+        cnpj: '12.345.678/0001-90',
+        isPrimary: true,
+        pixKeys: [
+          { id: 'pix-1', key: '12.345.678/0001-90', type: 'CNPJ', isPrimary: true },
+          { id: 'pix-2', key: 'contato@larmatilde.org', type: 'Email', isPrimary: false }
+        ]
+      }
+    ]
 };
 
 const STORAGE_KEYS = {

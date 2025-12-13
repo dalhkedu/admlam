@@ -95,6 +95,8 @@ export interface Campaign {
   items: CampaignItem[];
   packageIds: string[];
   beneficiaryFamilyIds: string[];
+  bankAccountId?: string;
+  pixKeyId?: string;
 }
 
 export enum EventFrequency {
@@ -137,13 +139,26 @@ export interface OrganizationLocation {
   notes?: string;
 }
 
-export interface OrganizationBankInfo {
+export interface PixKey {
+  id: string;
+  key: string;
+  type: 'CPF' | 'CNPJ' | 'Email' | 'Telefone' | 'Aleatória';
+  isPrimary: boolean;
+}
+
+export interface BankAccount {
+  id: string;
   bankName: string;
   agency: string;
   accountNumber: string;
-  pixKey: string;
+  accountHolder: string;
   cnpj: string;
-  accountHolder: string; // Titular da conta
+  isPrimary: boolean;
+  pixKeys: PixKey[];
+}
+
+export interface OrganizationBankInfo {
+  accounts: BankAccount[];
 }
 
 export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS' | 'PACKAGES' | 'EVENTS' | 'SETTINGS';

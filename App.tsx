@@ -9,7 +9,7 @@ import { PackageList } from './components/PackageList';
 import { EventList } from './components/EventList';
 import { Settings } from './components/Settings';
 import { StorageService } from './services/storage';
-import { Family, Campaign, ViewState, Package, DistributionEvent } from './types';
+import { Family, Campaign, ViewState, Package, DistributionEvent, OrganizationBankInfo } from './types';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('DASHBOARD');
@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
   const [events, setEvents] = useState<DistributionEvent[]>([]);
+  const [bankInfo, setBankInfo] = useState<OrganizationBankInfo>({ accounts: [] });
 
   // Load initial data
   useEffect(() => {
@@ -24,7 +25,8 @@ const App: React.FC = () => {
     setCampaigns(StorageService.getCampaigns());
     setPackages(StorageService.getPackages());
     setEvents(StorageService.getEvents());
-  }, []);
+    setBankInfo(StorageService.getBankInfo());
+  }, [currentView]); // Re-fetch when view changes to ensure settings updates are reflected
 
   const handleNavigate = (view: ViewState) => {
     setCurrentView(view);
@@ -135,6 +137,7 @@ const App: React.FC = () => {
           campaigns={campaigns}
           families={families}
           packages={packages}
+          bankInfo={bankInfo}
           onAddCampaign={handleAddCampaign}
           onUpdateCampaign={handleUpdateCampaign} 
           onToggleStatus={handleToggleCampaign}
