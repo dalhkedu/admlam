@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Family, Child, ClothingSize } from '../types';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, User, X, Users as UsersIcon } from 'lucide-react';
+import { parseFamilyData } from '../services/geminiService';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, User, X, Users as UsersIcon, Wand2, Loader2, Sparkles } from 'lucide-react';
 
 interface FamilyListProps {
   families: Family[];
@@ -33,6 +34,11 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingFamily, setEditingFamily] = useState<Family | null>(null);
   const [expandedFamilyId, setExpandedFamilyId] = useState<string | null>(null);
+
+  // AI Modal State
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [aiInputText, setAiInputText] = useState('');
+  const [isAiProcessing, setIsAiProcessing] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<Family>(emptyFamily);
@@ -83,20 +89,69 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
     setFormData(prev => ({ ...prev, children: newChildren }));
   };
 
+  const handleAiProcess = async () => {
+      if (!aiInputText.trim()) return;
+      setIsAiProcessing(true);
+      try {
+          const result = await parseFamilyData(aiInputText);
+          
+          const newFamily: Family = {
+              ...emptyFamily,
+              id: crypto.randomUUID(),
+              registrationDate: new Date().toISOString(),
+              responsibleName: result.responsibleName || '',
+              address: result.address || '',
+              phone: result.phone || '',
+              numberOfAdults: result.numberOfAdults || 1,
+              children: (result.children || []).map((c: any) => ({
+                  ...emptyChild,
+                  id: crypto.randomUUID(),
+                  name: c.name || '',
+                  age: c.age || 0,
+                  gender: c.gender || 'M',
+                  clothingSize: c.clothingSize || '',
+                  shoeSize: c.shoeSize || 0,
+                  notes: c.notes || ''
+              }))
+          };
+          
+          setFormData(newFamily);
+          setEditingFamily(null);
+          setIsAiModalOpen(false);
+          setIsModalOpen(true); // Abre o modal principal com os dados
+          setAiInputText('');
+      } catch (error) {
+          alert("Erro ao processar. Verifique se a chave API está configurada.");
+      } finally {
+          setIsAiProcessing(false);
+      }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
            <h1 className="text-2xl font-bold text-slate-800">Gerenciar Famílias</h1>
            <p className="text-slate-500">Cadastre famílias e seus dependentes.</p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()}
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
-        >
-          <Plus size={18} />
-          Nova Família
-        </button>
+        <div className="flex gap-2">
+            <button 
+            onClick={() => setIsAiModalOpen(true)}
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+            >
+            <Sparkles size={18} />
+            <span className="hidden md:inline">Cadastrar com IA</span>
+            <span className="md:hidden">IA</span>
+            </button>
+            <button 
+            onClick={() => handleOpenModal()}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition-colors shadow-sm"
+            >
+            <Plus size={18} />
+            <span className="hidden md:inline">Nova Família</span>
+            <span className="md:hidden">Nova</span>
+            </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
@@ -196,7 +251,51 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
         )}
       </div>
 
-      {/* Modal */}
+       {/* AI Input Modal */}
+       {isAiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
+             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                 <Sparkles className="text-purple-600" /> 
+                 Cadastro Rápido com IA
+               </h2>
+               <button onClick={() => setIsAiModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                 <X size={24} />
+               </button>
+             </div>
+             <div className="p-6 space-y-4">
+               <p className="text-sm text-slate-600">
+                 Cole um texto informal com os dados da família e a IA irá extrair e preencher o formulário automaticamente.
+               </p>
+               <textarea 
+                 value={aiInputText}
+                 onChange={e => setAiInputText(e.target.value)}
+                 className="w-full h-32 border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                 placeholder="Ex: Maria Souza, mora na Rua das Rosas 10, tel 9999-1234. Tem 3 filhos: João de 8 anos, Pedro de 5 e Ana de 12."
+               />
+               <div className="flex justify-end gap-3">
+                 <button 
+                   onClick={() => setIsAiModalOpen(false)}
+                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
+                 >
+                   Cancelar
+                 </button>
+                 <button 
+                   onClick={handleAiProcess}
+                   disabled={isAiProcessing || !aiInputText.trim()}
+                   className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50"
+                 >
+                   {isAiProcessing ? <Loader2 size={18} className="animate-spin" /> : <Wand2 size={18} />}
+                   Processar
+                 </button>
+               </div>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Family Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">

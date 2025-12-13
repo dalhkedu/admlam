@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ViewState } from '../types';
-import { LayoutDashboard, Users, Gift, Menu, X, HeartHandshake, Package } from 'lucide-react';
+import { LayoutDashboard, Users, Gift, Menu, X, HeartHandshake, Package, Settings as SettingsIcon } from 'lucide-react';
 
 interface LayoutProps {
   currentView: ViewState;
@@ -41,15 +41,15 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
 
       {/* Sidebar */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 transform transition-transform duration-200 ease-in-out
+        fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white border-r border-slate-200 transform transition-transform duration-200 ease-in-out flex flex-col
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        <div className="h-16 flex items-center gap-2 px-6 border-b border-slate-100">
+        <div className="h-16 flex items-center gap-2 px-6 border-b border-slate-100 flex-shrink-0">
            <HeartHandshake className="text-emerald-600" />
            <span className="font-bold text-slate-800 text-lg">Lar Matilde</span>
         </div>
 
-        <nav className="p-4 space-y-1">
+        <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentView === item.id;
@@ -74,8 +74,23 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
           })}
         </nav>
 
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-100">
-          <div className="flex items-center gap-3 px-2">
+        <div className="p-4 border-t border-slate-100 mt-auto">
+           <button
+             onClick={() => {
+                onNavigate('SETTINGS');
+                setSidebarOpen(false);
+             }}
+             className={`
+               w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors mb-2
+               ${currentView === 'SETTINGS'
+                 ? 'bg-emerald-50 text-emerald-700'
+                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}
+             `}
+           >
+              <SettingsIcon size={20} />
+              Configurações
+           </button>
+          <div className="flex items-center gap-3 px-2 pt-2">
             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xs">
               AD
             </div>

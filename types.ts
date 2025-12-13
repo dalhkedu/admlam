@@ -80,4 +80,4 @@ export interface Campaign {
   beneficiaryFamilyIds: string[]; // IDs das famílias vinculadas
 }
 
-export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS' | 'PACKAGES';
+export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS' | 'PACKAGES' | 'SETTINGS';

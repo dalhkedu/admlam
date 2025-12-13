@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Package, PackageItem } from '../types';
-import { Plus, Trash2, Box, X, Edit2 } from 'lucide-react';
+import { suggestPackageItems } from '../services/geminiService';
+import { Plus, Trash2, Box, X, Edit2, Wand2, Loader2 } from 'lucide-react';
 
 interface PackageListProps {
   packages: Package[];
@@ -20,6 +21,7 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<Package>(emptyPackage);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSuggesting, setIsSuggesting] = useState(false);
 
   const handleOpenModal = (pkg?: Package) => {
     if (pkg) {
@@ -51,6 +53,28 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
     const newItems = [...formData.items];
     newItems[index] = { ...newItems[index], [field]: value };
     setFormData(prev => ({ ...prev, items: newItems }));
+  };
+
+  const handleSuggestItems = async () => {
+      if(!formData.name || !formData.description) {
+          alert("Preencha o nome e a descrição do pacote primeiro.");
+          return;
+      }
+
+      setIsSuggesting(true);
+      try {
+          const suggestions = await suggestPackageItems(formData.name, formData.description);
+          if (suggestions.length > 0) {
+              setFormData(prev => ({
+                  ...prev,
+                  items: suggestions
+              }));
+          }
+      } catch (error) {
+          alert("Erro ao gerar sugestões. Verifique a chave API nas Configurações.");
+      } finally {
+          setIsSuggesting(false);
+      }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -170,9 +194,20 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
               <div className="border-t border-slate-100 pt-4">
                 <div className="flex justify-between items-center mb-3">
                   <h3 className="font-semibold text-slate-700">Itens do Pacote</h3>
-                  <button type="button" onClick={addItem} className="text-sm text-emerald-600 font-medium hover:underline flex items-center gap-1">
-                    <Plus size={14} /> Adicionar Item
-                  </button>
+                  <div className="flex gap-2">
+                      <button 
+                        type="button" 
+                        onClick={handleSuggestItems}
+                        disabled={isSuggesting}
+                        className="text-xs bg-purple-100 text-purple-700 px-3 py-1.5 rounded flex items-center gap-1 hover:bg-purple-200 transition-colors disabled:opacity-50"
+                      >
+                         {isSuggesting ? <Loader2 size={14} className="animate-spin"/> : <Wand2 size={14}/>}
+                         Sugerir Itens com IA
+                      </button>
+                      <button type="button" onClick={addItem} className="text-sm text-emerald-600 font-medium hover:underline flex items-center gap-1">
+                        <Plus size={14} /> Adicionar Item
+                      </button>
+                  </div>
                 </div>
                 
                 <div className="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200">

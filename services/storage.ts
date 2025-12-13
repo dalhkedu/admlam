@@ -83,7 +83,8 @@ const MOCK_CAMPAIGNS: Campaign[] = [
 const STORAGE_KEYS = {
   FAMILIES: 'lar_matilde_families',
   CAMPAIGNS: 'lar_matilde_campaigns',
-  PACKAGES: 'lar_matilde_packages'
+  PACKAGES: 'lar_matilde_packages',
+  API_KEY: 'lar_matilde_api_key'
 };
 
 export const StorageService = {
@@ -205,5 +206,14 @@ export const StorageService = {
           campaign.isActive = !campaign.isActive;
           localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(campaigns));
       }
+  },
+
+  // Settings / API Key
+  getApiKey: (): string => {
+    return localStorage.getItem(STORAGE_KEYS.API_KEY) || '';
+  },
+
+  saveApiKey: (key: string): void => {
+    localStorage.setItem(STORAGE_KEYS.API_KEY, key);
   }
 };

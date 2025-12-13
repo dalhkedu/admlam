@@ -5,7 +5,8 @@ import { Layout } from './components/Layout';
 import { Dashboard } from './components/Dashboard';
 import { FamilyList } from './components/FamilyList';
 import { CampaignList } from './components/CampaignList';
-import { PackageList } from './components/PackageList'; // Novo Import
+import { PackageList } from './components/PackageList'; 
+import { Settings } from './components/Settings'; // Novo Import
 import { StorageService } from './services/storage';
 import { Family, Campaign, ViewState, Package } from './types';
 
@@ -108,6 +109,9 @@ const App: React.FC = () => {
           onUpdateCampaign={handleUpdateCampaign} 
           onToggleStatus={handleToggleCampaign}
         />
+      )}
+      {currentView === 'SETTINGS' && (
+        <Settings />
       )}
     </Layout>
   );
