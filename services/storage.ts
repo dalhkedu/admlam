@@ -16,6 +16,9 @@ const MOCK_FAMILIES: Family[] = [
     email: 'maria.silva@exemplo.com',
     numberOfAdults: 2,
     status: 'Ativo',
+    history: [
+        { id: 'hist-1', date: '2023-01-15T10:00:00.000Z', type: 'Cadastro', description: 'Cadastro inicial realizado no sistema.', author: 'Admin' }
+    ],
     registrationDate: new Date('2023-01-15').toISOString(),
     isPregnant: true,
     pregnancyDueDate: '2025-02-15',
@@ -58,6 +61,10 @@ const MOCK_FAMILIES: Family[] = [
     phone: '(11) 98888-5678',
     numberOfAdults: 1,
     status: 'Ativo',
+    history: [
+        { id: 'hist-2', date: '2023-03-10T14:30:00.000Z', type: 'Cadastro', description: 'Cadastro realizado.', author: 'Admin' },
+        { id: 'hist-3', date: '2023-06-15T09:00:00.000Z', type: 'Atualização', description: 'Endereço atualizado.', author: 'Admin' }
+    ],
     registrationDate: new Date('2023-03-10').toISOString(),
     isPregnant: false,
     children: [

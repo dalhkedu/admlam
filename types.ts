@@ -30,6 +30,14 @@ export interface Child {
   notes?: string;
 }
 
+export interface FamilyHistoryEntry {
+  id: string;
+  date: string; // ISO String
+  type: 'Cadastro' | 'Atualização' | 'Suspensão' | 'Reativação' | 'Ocorrência' | 'Outro';
+  description: string;
+  author?: string; // Quem fez a alteração (simulado por enquanto)
+}
+
 export interface Family {
   id: string;
   cardId?: string; // Nº da Carteirinha
@@ -45,7 +53,9 @@ export interface Family {
   email?: string; // Campo opcional de contato
   numberOfAdults: number; // Pessoas na casa (adultos)
   
-  status: 'Ativo' | 'Inativo';
+  status: 'Ativo' | 'Inativo' | 'Suspenso';
+  history: FamilyHistoryEntry[]; // Histórico de registros
+
   children: Child[];
   registrationDate: string; // ISO String
   
