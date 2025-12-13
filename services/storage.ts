@@ -1,4 +1,4 @@
-import { Family, Campaign, CampaignType, ClothingSize, Package, DistributionEvent, EventFrequency } from '../types';
+import { Family, Campaign, CampaignType, ClothingSize, Package, DistributionEvent, EventFrequency, OrganizationLocation, LocationType } from '../types';
 
 // Initial Mock Data
 const MOCK_FAMILIES: Family[] = [
@@ -157,11 +157,24 @@ const MOCK_EVENTS: DistributionEvent[] = [
   }
 ];
 
+const MOCK_LOCATIONS: OrganizationLocation[] = [
+    {
+        id: 'loc-001',
+        name: 'Sede Principal',
+        type: LocationType.HEADQUARTERS,
+        address: 'Rua das Palmeiras, 100, Centro, São Paulo/SP',
+        phone: '(11) 3333-4444',
+        operatingHours: 'Seg-Sex 08:00 às 18:00',
+        notes: 'Entrada principal.'
+    }
+];
+
 const STORAGE_KEYS = {
   FAMILIES: 'lar_matilde_families',
   CAMPAIGNS: 'lar_matilde_campaigns',
   PACKAGES: 'lar_matilde_packages',
   EVENTS: 'lar_matilde_events',
+  LOCATIONS: 'lar_matilde_locations',
   API_KEY: 'lar_matilde_api_key'
 };
 
@@ -311,6 +324,33 @@ export const StorageService = {
     const events = StorageService.getEvents();
     const filtered = events.filter(e => e.id !== id);
     localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(filtered));
+  },
+
+  // Locations CRUD
+  getLocations: (): OrganizationLocation[] => {
+    const data = localStorage.getItem(STORAGE_KEYS.LOCATIONS);
+    if (!data) {
+      localStorage.setItem(STORAGE_KEYS.LOCATIONS, JSON.stringify(MOCK_LOCATIONS));
+      return MOCK_LOCATIONS;
+    }
+    return JSON.parse(data);
+  },
+
+  saveLocation: (location: OrganizationLocation): void => {
+    const locations = StorageService.getLocations();
+    const index = locations.findIndex(l => l.id === location.id);
+    if (index >= 0) {
+      locations[index] = location;
+    } else {
+      locations.push(location);
+    }
+    localStorage.setItem(STORAGE_KEYS.LOCATIONS, JSON.stringify(locations));
+  },
+
+  deleteLocation: (id: string): void => {
+    const locations = StorageService.getLocations();
+    const filtered = locations.filter(l => l.id !== id);
+    localStorage.setItem(STORAGE_KEYS.LOCATIONS, JSON.stringify(filtered));
   },
 
   // Settings / API Key

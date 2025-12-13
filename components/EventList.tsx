@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { DistributionEvent, EventFrequency, Campaign } from '../types';
-import { Plus, Calendar, MapPin, Clock, DollarSign, Edit2, Trash2, X, Link, Check, Repeat, Copy, Search, Loader2 } from 'lucide-react';
+import { Plus, Calendar, MapPin, Clock, DollarSign, Edit2, Trash2, X, Link, Check, Repeat, Copy, Search, Loader2, Filter } from 'lucide-react';
 
 interface EventListProps {
   events: DistributionEvent[];
@@ -28,6 +28,12 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<DistributionEvent>(emptyEvent);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Filter States
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [filterFrequency, setFilterFrequency] = useState<string>('ALL');
+  const [filterStartDate, setFilterStartDate] = useState<string>('');
+  const [filterEndDate, setFilterEndDate] = useState<string>('');
 
   // Address Helper State
   const [cep, setCep] = useState('');
@@ -134,7 +140,22 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
     });
   };
 
-  const sortedEvents = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // Logic for Filtering
+  const filteredEvents = events.filter(event => {
+    // Filter by Status
+    if (filterStatus !== 'ALL' && event.status !== filterStatus) return false;
+
+    // Filter by Frequency
+    if (filterFrequency !== 'ALL' && event.frequency !== filterFrequency) return false;
+
+    // Filter by Date Range
+    if (filterStartDate && event.date < filterStartDate) return false;
+    if (filterEndDate && event.date > filterEndDate) return false;
+
+    return true;
+  });
+
+  const sortedEvents = [...filteredEvents].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
   return (
     <div className="space-y-6">
@@ -152,9 +173,79 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
         </button>
       </div>
 
+      {/* Barra de Filtros */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 items-center flex-wrap">
+        <div className="flex items-center gap-2 text-slate-500 font-medium mr-2">
+          <Filter size={20} />
+          <span>Filtrar:</span>
+        </div>
+        
+        <div className="flex flex-1 flex-wrap gap-4 items-center w-full md:w-auto">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="min-w-[150px] border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+          >
+            <option value="ALL">Todos os Status</option>
+            <option value="Agendado">Agendado</option>
+            <option value="Realizado">Realizado</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+
+          <select
+            value={filterFrequency}
+            onChange={(e) => setFilterFrequency(e.target.value)}
+            className="min-w-[150px] border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+          >
+            <option value="ALL">Todas Frequências</option>
+            {Object.values(EventFrequency).map(freq => (
+                <option key={freq} value={freq}>{freq}</option>
+            ))}
+          </select>
+
+          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-200">
+             <Calendar size={16} className="text-slate-400"/>
+             <span className="text-xs text-slate-500 font-medium">De:</span>
+             <input 
+                type="date"
+                value={filterStartDate}
+                onChange={(e) => setFilterStartDate(e.target.value)}
+                className="bg-transparent border-none text-sm text-slate-900 focus:ring-0 outline-none p-0"
+             />
+          </div>
+
+          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1 rounded-lg border border-slate-200">
+             <Calendar size={16} className="text-slate-400"/>
+             <span className="text-xs text-slate-500 font-medium">Até:</span>
+             <input 
+                type="date"
+                value={filterEndDate}
+                onChange={(e) => setFilterEndDate(e.target.value)}
+                className="bg-transparent border-none text-sm text-slate-900 focus:ring-0 outline-none p-0"
+             />
+          </div>
+          
+          {(filterStartDate || filterEndDate || filterStatus !== 'ALL' || filterFrequency !== 'ALL') && (
+            <button 
+              onClick={() => { 
+                  setFilterStartDate(''); 
+                  setFilterEndDate('');
+                  setFilterStatus('ALL');
+                  setFilterFrequency('ALL');
+              }}
+              className="text-xs text-red-500 hover:underline ml-auto md:ml-0"
+            >
+              Limpar Filtros
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {sortedEvents.map(event => {
           const isPast = new Date(event.date) < new Date(getTodayDate());
+          const isFinalized = event.status === 'Realizado' || event.status === 'Cancelado';
+
           return (
             <div key={event.id} className={`bg-white rounded-xl shadow-sm border ${isPast ? 'border-slate-100 bg-slate-50' : 'border-slate-200'} flex flex-col`}>
               <div className="p-5 flex-1">
@@ -172,7 +263,12 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                     <button onClick={() => handleCloneEvent(event)} title="Clonar evento" className="p-1.5 text-slate-400 hover:text-emerald-600 rounded hover:bg-slate-100">
                         <Copy size={16} />
                     </button>
-                    <button onClick={() => handleOpenModal(event)} title="Editar" className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100">
+                    <button 
+                        onClick={() => !isFinalized && handleOpenModal(event)} 
+                        disabled={isFinalized}
+                        title={isFinalized ? "Eventos finalizados não podem ser editados" : "Editar"}
+                        className={`p-1.5 rounded ${isFinalized ? 'text-slate-300 cursor-not-allowed' : 'text-slate-400 hover:text-blue-600 hover:bg-slate-100'}`}
+                    >
                         <Edit2 size={16} />
                     </button>
                     <button onClick={() => onDeleteEvent(event.id)} title="Excluir" className="p-1.5 text-slate-400 hover:text-red-600 rounded hover:bg-slate-100">
@@ -229,7 +325,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
         {sortedEvents.length === 0 && (
           <div className="col-span-full py-12 text-center bg-white rounded-xl border border-slate-200 border-dashed">
             <Calendar className="mx-auto w-12 h-12 text-slate-400 mb-3" />
-            <p className="text-slate-500">Nenhum evento agendado.</p>
+            <p className="text-slate-500">Nenhum evento encontrado com os filtros selecionados.</p>
           </div>
         )}
       </div>

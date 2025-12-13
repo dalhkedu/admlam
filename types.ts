@@ -119,4 +119,22 @@ export interface DistributionEvent {
   status: 'Agendado' | 'Realizado' | 'Cancelado';
 }
 
+export enum LocationType {
+  HEADQUARTERS = 'Sede Administrativa',
+  BRANCH = 'Filial',
+  STORE = 'Bazar / Loja',
+  COLLECTION_POINT = 'Ponto de Coleta',
+  WAREHOUSE = 'Depósito / Estoque'
+}
+
+export interface OrganizationLocation {
+  id: string;
+  name: string; // Ex: Sede Principal, Bazar Centro
+  type: LocationType;
+  address: string;
+  phone?: string;
+  operatingHours?: string; // Ex: Seg-Sex 08:00 as 18:00
+  notes?: string;
+}
+
 export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS' | 'PACKAGES' | 'EVENTS' | 'SETTINGS';
