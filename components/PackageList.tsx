@@ -191,7 +191,7 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
                     required
                     value={formData.name}
                     onChange={e => setFormData({...formData, name: e.target.value})}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                     placeholder="Ex: Cesta Básica Completa"
                   />
                 </div>
@@ -201,7 +201,7 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
                     rows={2}
                     value={formData.description}
                     onChange={e => setFormData({...formData, description: e.target.value})}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                     placeholder="Ex: Alimentos não perecíveis para 30 dias."
                   />
                 </div>
@@ -240,7 +240,7 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
                           <input 
                             placeholder="Nome"
                             required
-                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm text-slate-900 bg-white"
                             value={item.name}
                             onChange={e => updateItem(index, 'name', e.target.value)}
                         />
@@ -252,14 +252,14 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
                             required
                             min="0.1"
                             step="0.1"
-                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm"
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm text-slate-900 bg-white"
                             value={item.quantity || ''}
                             onChange={e => updateItem(index, 'quantity', e.target.value ? parseFloat(e.target.value) : 0)}
                         />
                       </div>
                       <div className="col-span-2">
                          <select
-                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm bg-white text-slate-700"
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm bg-white text-slate-900"
                             value={item.unit}
                             onChange={e => updateItem(index, 'unit', e.target.value)}
                         >
@@ -276,7 +276,7 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
                             placeholder="0.00"
                             min="0"
                             step="0.01"
-                            className="w-full border border-slate-300 rounded pl-6 pr-2 py-1.5 text-sm"
+                            className="w-full border border-slate-300 rounded pl-6 pr-2 py-1.5 text-sm text-slate-900 bg-white"
                             value={item.averagePrice || ''}
                             onChange={e => updateItem(index, 'averagePrice', e.target.value ? parseFloat(e.target.value) : 0)}
                          />

@@ -203,7 +203,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                     </div>
                 </div>
                 
-                {event.linkedCampaignIds.length > 0 && (
+                {event.linkedCampaignIds && event.linkedCampaignIds.length > 0 && (
                     <div className="mt-4 pt-3 border-t border-slate-100">
                         <p className="text-xs font-semibold text-slate-500 mb-2 flex items-center gap-1">
                             <Link size={12}/> Campanhas Vinculadas
@@ -212,8 +212,9 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                             {event.linkedCampaignIds.map(cid => {
                                 const camp = campaigns.find(c => c.id === cid);
                                 return camp ? (
-                                    <span key={cid} className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100">
+                                    <span key={cid} className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100 flex items-center gap-1">
                                         {camp.title}
+                                        {!camp.isActive && <span className="opacity-50 text-[10px]">(Encerrada)</span>}
                                     </span>
                                 ) : null;
                             })}
@@ -251,7 +252,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                   required
                   value={formData.title}
                   onChange={e => setFormData({...formData, title: e.target.value})}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                   placeholder="Ex: Entrega de Cestas Mensais"
                 />
               </div>
@@ -262,7 +263,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                     rows={2}
                     value={formData.description}
                     onChange={e => setFormData({...formData, description: e.target.value})}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
                     placeholder="Detalhes sobre o evento..."
                   />
               </div>
@@ -275,7 +276,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         required
                         value={formData.date}
                         onChange={e => setFormData({...formData, date: e.target.value})}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                     />
                   </div>
                   <div className="space-y-1">
@@ -283,7 +284,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                     <select
                         value={formData.frequency}
                         onChange={e => setFormData({...formData, frequency: e.target.value as EventFrequency})}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-700 outline-none"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white text-slate-900 outline-none"
                     >
                         {Object.values(EventFrequency).map(f => (
                             <option key={f} value={f}>{f}</option>
@@ -297,7 +298,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         required
                         value={formData.startTime}
                         onChange={e => setFormData({...formData, startTime: e.target.value})}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                     />
                   </div>
                   <div className="space-y-1">
@@ -307,7 +308,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         required
                         value={formData.endTime}
                         onChange={e => setFormData({...formData, endTime: e.target.value})}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                     />
                   </div>
               </div>
@@ -328,7 +329,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         value={cep} 
                         onChange={e => setCep(e.target.value)}
                         onBlur={handleCepBlur}
-                        className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
                         />
                         <div className="absolute right-2 top-2 text-slate-400">
                         {isLoadingCep ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
@@ -342,7 +343,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         tabIndex={-1}
                         placeholder="Preenchido automaticamente..."
                         value={addressDetails.logradouro} 
-                        className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-600 outline-none"
+                        className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
                     />
                     </div>
                     <div className="col-span-1">
@@ -352,7 +353,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         required={!!addressDetails.logradouro}
                         value={addressNumber} 
                         onChange={e => setAddressNumber(e.target.value)}
-                        className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
                     />
                     </div>
                     <div className="col-span-1">
@@ -361,7 +362,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         type="text"
                         value={addressComplement} 
                         onChange={e => setAddressComplement(e.target.value)}
-                        className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
                     />
                     </div>
                     <div className="col-span-1">
@@ -370,7 +371,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         readOnly
                         tabIndex={-1}
                         value={addressDetails.bairro} 
-                        className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-600 outline-none"
+                        className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
                     />
                     </div>
                     <div className="col-span-1">
@@ -379,7 +380,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         readOnly
                         tabIndex={-1}
                         value={addressDetails.localidade ? `${addressDetails.localidade}/${addressDetails.uf}` : ''} 
-                        className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-600 outline-none"
+                        className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
                     />
                     </div>
                 </div>
@@ -391,7 +392,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                     type="text" 
                     value={formData.location} 
                     onChange={e => setFormData({...formData, location: e.target.value})}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-900 bg-white"
                     placeholder="Endereço gerado ou nome do local..."
                     />
                 </div>
@@ -419,7 +420,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                             step="0.01"
                             value={formData.entryFee || ''}
                             onChange={e => setFormData({...formData, entryFee: parseFloat(e.target.value)})}
-                            className="w-full pl-8 border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+                            className="w-full pl-8 border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                             placeholder="0.00"
                         />
                       </div>
@@ -431,16 +432,23 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                       <Link size={16} /> Vincular Campanhas (Origem das Doações)
                   </h3>
                   <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-2 bg-slate-50">
-                      {campaigns.filter(c => c.isActive).length > 0 ? (
-                          campaigns.filter(c => c.isActive).map(campaign => (
-                              <label key={campaign.id} className="flex items-center gap-3 p-2 bg-white rounded border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                      {campaigns.filter(c => c.isActive || (formData.linkedCampaignIds || []).includes(c.id)).length > 0 ? (
+                          campaigns
+                            .filter(c => c.isActive || (formData.linkedCampaignIds || []).includes(c.id))
+                            .map(campaign => (
+                              <label key={campaign.id} className={`flex items-center gap-3 p-2 bg-white rounded border cursor-pointer ${
+                                  !campaign.isActive ? 'border-slate-100 bg-slate-50 opacity-75' : 'border-slate-200 hover:bg-slate-50'
+                              }`}>
                                   <input 
                                       type="checkbox"
                                       checked={(formData.linkedCampaignIds || []).includes(campaign.id)}
                                       onChange={() => toggleCampaignLink(campaign.id)}
                                       className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                                   />
-                                  <div className="text-sm text-slate-700">{campaign.title}</div>
+                                  <div className="text-sm text-slate-700">
+                                      {campaign.title}
+                                      {!campaign.isActive && <span className="text-xs text-slate-400 ml-1">(Encerrada)</span>}
+                                  </div>
                               </label>
                           ))
                       ) : (

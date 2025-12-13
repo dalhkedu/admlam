@@ -285,7 +285,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="min-w-[150px] border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+            className="min-w-[150px] border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
           >
             <option value="ALL">Todos os Status</option>
             <option value="ACTIVE">Em Andamento</option>
@@ -295,7 +295,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="min-w-[180px] border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
+            className="min-w-[180px] border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none bg-white"
           >
             <option value="ALL">Todos os Tipos</option>
             {Object.values(CampaignType).map(type => (
@@ -310,7 +310,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                 type="date"
                 value={filterStartDate}
                 onChange={(e) => setFilterStartDate(e.target.value)}
-                className="bg-transparent border-none text-sm text-slate-700 focus:ring-0 outline-none p-0"
+                className="bg-transparent border-none text-sm text-slate-900 focus:ring-0 outline-none p-0"
              />
           </div>
 
@@ -321,7 +321,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                 type="date"
                 value={filterEndDate}
                 onChange={(e) => setFilterEndDate(e.target.value)}
-                className="bg-transparent border-none text-sm text-slate-700 focus:ring-0 outline-none p-0"
+                className="bg-transparent border-none text-sm text-slate-900 focus:ring-0 outline-none p-0"
              />
           </div>
           
@@ -476,7 +476,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                   required
                   value={formData.title}
                   onChange={e => setFormData({...formData, title: e.target.value})}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                   placeholder="Ex: Natal Solidário 2024"
                 />
               </div>
@@ -487,7 +487,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                   <select 
                     value={formData.type}
                     onChange={e => setFormData({...formData, type: e.target.value as CampaignType})}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-slate-700"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-slate-900"
                   >
                     {Object.values(CampaignType).map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
@@ -500,7 +500,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                     min={!campaigns.some(c => c.id === formData.id) ? getTodayDate() : undefined} 
                     value={formData.startDate.toString().split('T')[0]}
                     onChange={e => setFormData({...formData, startDate: e.target.value})}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                   />
                 </div>
                 <div className="space-y-1">
@@ -511,7 +511,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                     min={formData.startDate}
                     value={formData.endDate.toString().split('T')[0]}
                     onChange={e => setFormData({...formData, endDate: e.target.value})}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                   />
                 </div>
               </div>
@@ -534,7 +534,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                   rows={3}
                   value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
                   placeholder="Descreva o objetivo da campanha..."
                 />
               </div>

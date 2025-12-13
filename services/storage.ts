@@ -4,7 +4,13 @@ import { Family, Campaign, CampaignType, ClothingSize, Package, DistributionEven
 const MOCK_FAMILIES: Family[] = [
   {
     id: 'fam-001',
+    cardId: '001/24',
     responsibleName: 'Maria da Silva',
+    responsibleBirthDate: '1985-05-20',
+    rg: '12.345.678-9',
+    cpf: '123.456.789-00',
+    maritalStatus: 'Casada(o)',
+    spouseName: 'João da Silva',
     address: 'Rua das Flores, 123, Jd. Esperança',
     phone: '(11) 99999-1234',
     numberOfAdults: 2,
@@ -13,13 +19,40 @@ const MOCK_FAMILIES: Family[] = [
     isPregnant: true,
     pregnancyDueDate: '2025-02-15',
     children: [
-      { id: 'ch-1', name: 'Joãozinho', age: 8, gender: 'M', clothingSize: ClothingSize.INFANTIL_8, shoeSize: 32, notes: 'Gosta de futebol' },
-      { id: 'ch-2', name: 'Ana', age: 5, gender: 'F', clothingSize: ClothingSize.INFANTIL_6, shoeSize: 28, notes: 'Gosta de bonecas' }
+      { 
+        id: 'ch-1', 
+        name: 'Joãozinho', 
+        age: 8, 
+        birthDate: '2016-03-10',
+        gender: 'M', 
+        clothingSize: ClothingSize.INFANTIL_8, 
+        shoeSize: 32, 
+        isStudent: true,
+        schoolYear: '3º Ano',
+        notes: 'Gosta de futebol' 
+      },
+      { 
+        id: 'ch-2', 
+        name: 'Ana', 
+        age: 5, 
+        birthDate: '2019-07-22',
+        gender: 'F', 
+        clothingSize: ClothingSize.INFANTIL_6, 
+        shoeSize: 28, 
+        isStudent: true,
+        schoolYear: 'Pré-escola',
+        notes: 'Gosta de bonecas' 
+      }
     ]
   },
   {
     id: 'fam-002',
+    cardId: '002/24',
     responsibleName: 'José Santos',
+    responsibleBirthDate: '1990-11-12',
+    rg: '98.765.432-1',
+    cpf: '987.654.321-99',
+    maritalStatus: 'Solteira(o)',
     address: 'Av. Principal, 450, Centro',
     phone: '(11) 98888-5678',
     numberOfAdults: 1,
@@ -27,7 +60,19 @@ const MOCK_FAMILIES: Family[] = [
     registrationDate: new Date('2023-03-10').toISOString(),
     isPregnant: false,
     children: [
-      { id: 'ch-3', name: 'Pedro', age: 12, gender: 'M', clothingSize: ClothingSize.INFANTIL_14, shoeSize: 36 }
+      { 
+        id: 'ch-3', 
+        name: 'Pedro', 
+        age: 12, 
+        birthDate: '2012-05-15',
+        gender: 'M', 
+        clothingSize: ClothingSize.INFANTIL_14, 
+        shoeSize: 36,
+        isStudent: true,
+        schoolYear: '6º Ano',
+        hasDisability: true,
+        disabilityDetails: 'Autismo leve'
+      }
     ]
   }
 ];

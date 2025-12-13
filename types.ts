@@ -18,24 +18,38 @@ export enum ClothingSize {
 export interface Child {
   id: string;
   name: string;
-  age: number;
+  age: number; // Mantido para compatibilidade, calculado via birthDate se possível
+  birthDate?: string; // YYYY-MM-DD
   gender: 'M' | 'F' | 'Outro';
   clothingSize: ClothingSize | string;
   shoeSize: number;
+  isStudent?: boolean;
+  schoolYear?: string; // Ano letivo
+  hasDisability?: boolean;
+  disabilityDetails?: string;
   notes?: string;
 }
 
 export interface Family {
   id: string;
-  responsibleName: string;
+  cardId?: string; // Nº da Carteirinha
+  responsibleName: string; // Responsável / Assistido
+  responsibleBirthDate?: string; // YYYY-MM-DD
+  rg?: string;
+  cpf?: string;
+  maritalStatus?: 'Casada(o)' | 'Solteira(o)' | 'Viúva(o)' | 'Divorciada(o)' | 'União Estável' | 'Outro';
+  spouseName?: string;
+  
   address: string;
   phone: string;
-  numberOfAdults: number;
+  numberOfAdults: number; // Pessoas na casa (adultos)
+  
   status: 'Ativo' | 'Inativo';
   children: Child[];
   registrationDate: string; // ISO String
-  isPregnant?: boolean; // Se há gestante na família
-  pregnancyDueDate?: string; // Data prevista do parto (YYYY-MM-DD)
+  
+  isPregnant?: boolean;
+  pregnancyDueDate?: string;
 }
 
 export enum CampaignType {
@@ -52,16 +66,15 @@ export interface CampaignItem {
   targetQuantity: number;
   collectedQuantity: number;
   unit: 'kg' | 'un' | 'lt' | 'pc';
-  averagePrice?: number; // Preço médio estimado unitário
+  averagePrice?: number;
 }
 
-// Novos tipos para Pacotes
 export interface PackageItem {
   id: string;
   name: string;
   quantity: number;
   unit: 'kg' | 'un' | 'lt' | 'pc';
-  averagePrice?: number; // Preço médio estimado unitário
+  averagePrice?: number;
 }
 
 export interface Package {
@@ -74,14 +87,14 @@ export interface Package {
 export interface Campaign {
   id: string;
   title: string;
-  description: string; // Can be AI generated
+  description: string;
   type: CampaignType;
   startDate: string;
   endDate: string;
   isActive: boolean;
-  items: CampaignItem[]; // Itens calculados (cache do total necessário)
-  packageIds: string[]; // IDs dos pacotes vinculados
-  beneficiaryFamilyIds: string[]; // IDs das famílias vinculadas
+  items: CampaignItem[];
+  packageIds: string[];
+  beneficiaryFamilyIds: string[];
 }
 
 export enum EventFrequency {
@@ -95,14 +108,14 @@ export interface DistributionEvent {
   id: string;
   title: string;
   description: string;
-  date: string; // YYYY-MM-DD
-  startTime: string; // HH:MM
-  endTime: string; // HH:MM
+  date: string;
+  startTime: string;
+  endTime: string;
   location: string;
   isFree: boolean;
   entryFee?: number;
   frequency: EventFrequency;
-  linkedCampaignIds: string[]; // IDs das campanhas que abastecem este evento
+  linkedCampaignIds: string[];
   status: 'Agendado' | 'Realizado' | 'Cancelado';
 }
 

@@ -110,26 +110,36 @@ export const parseFamilyData = async (rawText: string): Promise<Partial<Family>>
     }
 
     const prompt = `
-      Analise o texto abaixo e extraia os dados de uma família para cadastro na ONG.
+      Analise o texto abaixo e extraia os dados de uma família para cadastro na ONG (Lar Assistencial Matilde).
       
       Texto: "${rawText}"
       
       Retorne um JSON com a estrutura:
-      - responsibleName (string)
-      - address (string)
+      - responsibleName (string): Nome do responsável/assistido.
+      - rg (string): Se disponível.
+      - cpf (string): Se disponível.
+      - responsibleBirthDate (string YYYY-MM-DD): Se disponível.
+      - maritalStatus (string): 'Casada(o)', 'Solteira(o)', 'Viúva(o)', 'Divorciada(o)'.
+      - spouseName (string): Nome do cônjuge se houver.
+      - address (string): Endereço completo.
       - phone (string)
-      - numberOfAdults (number)
-      - isPregnant (boolean): Identifique se o texto menciona alguém grávida/gestante na família.
-      - pregnancyDueDate (string YYYY-MM-DD): Se houver menção de data de parto ou meses de gestação, tente estimar a data (considere a data atual como base). Se não, deixe null.
+      - numberOfAdults (number): Pessoas na casa (exceto crianças).
+      - isPregnant (boolean)
+      - pregnancyDueDate (string YYYY-MM-DD)
       - children (array de objetos):
          - name (string)
          - age (number)
-         - gender ('M' ou 'F', ou 'Outro' se não especificado)
-         - clothingSize (string, tente estimar pelo tamanho ou idade se não houver: 'P','M','G' ou '2','4','6','8','10','12','14')
-         - shoeSize (number, tente estimar pela idade se não houver)
-         - notes (string, qualquer obs extra)
+         - birthDate (string YYYY-MM-DD): Se disponível.
+         - gender ('M' ou 'F')
+         - clothingSize (string)
+         - shoeSize (number)
+         - isStudent (boolean)
+         - schoolYear (string): Ex: '5º Ano', 'Creche'.
+         - hasDisability (boolean): Se a criança tem deficiência.
+         - disabilityDetails (string): Detalhes da deficiência.
+         - notes (string): Obs extras.
 
-      Se faltar informação, use valores padrão razoáveis ou deixe string vazia, mas não invente dados.
+      Se faltar informação, deixe null ou string vazia, mas tente inferir o máximo possível do contexto.
     `;
 
     try {
