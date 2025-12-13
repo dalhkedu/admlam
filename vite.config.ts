@@ -12,4 +12,8 @@ export default defineConfig({
   },
   // Garante que o roteamento funcione corretamente na raiz
   base: '/',
+  // Polyfill para process.env para evitar erros "process is not defined" em bibliotecas que o utilizam
+  define: {
+    'process.env': {}
+  }
 });
