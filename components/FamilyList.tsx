@@ -439,8 +439,8 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                         </div>
                         <div className="col-span-2">
                            <input 
-                            placeholder="Observações (opcional)"
-                            className="w-full text-sm border-slate-300 rounded px-2 py-1.5"
+                            placeholder="Observações (ex: alergias, necessidades especiais)"
+                            className="w-full text-sm border-slate-300 rounded px-2 py-1.5 focus:ring-1 focus:ring-emerald-500 outline-none"
                             value={child.notes || ''}
                             onChange={(e) => updateChild(index, 'notes', e.target.value)}
                            />
