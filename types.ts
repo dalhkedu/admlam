@@ -80,4 +80,26 @@ export interface Campaign {
   beneficiaryFamilyIds: string[]; // IDs das famílias vinculadas
 }
 
-export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS' | 'PACKAGES' | 'SETTINGS';
+export enum EventFrequency {
+  ONCE = 'Único',
+  WEEKLY = 'Semanal',
+  MONTHLY = 'Mensal',
+  YEARLY = 'Anual'
+}
+
+export interface DistributionEvent {
+  id: string;
+  title: string;
+  description: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:MM
+  endTime: string; // HH:MM
+  location: string;
+  isFree: boolean;
+  entryFee?: number;
+  frequency: EventFrequency;
+  linkedCampaignIds: string[]; // IDs das campanhas que abastecem este evento
+  status: 'Agendado' | 'Realizado' | 'Cancelado';
+}
+
+export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS' | 'PACKAGES' | 'EVENTS' | 'SETTINGS';

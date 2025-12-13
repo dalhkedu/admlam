@@ -1,4 +1,4 @@
-import { Family, Campaign, CampaignType, ClothingSize, Package } from '../types';
+import { Family, Campaign, CampaignType, ClothingSize, Package, DistributionEvent, EventFrequency } from '../types';
 
 // Initial Mock Data
 const MOCK_FAMILIES: Family[] = [
@@ -80,10 +80,40 @@ const MOCK_CAMPAIGNS: Campaign[] = [
   }
 ];
 
+const MOCK_EVENTS: DistributionEvent[] = [
+  {
+    id: 'evt-001',
+    title: 'Festa de Natal do Lar',
+    description: 'Entrega dos presentes de Natal e almoço comunitário.',
+    date: '2024-12-22',
+    startTime: '10:00',
+    endTime: '15:00',
+    location: 'Sede do Lar - Salão Principal',
+    isFree: true,
+    frequency: EventFrequency.YEARLY,
+    linkedCampaignIds: ['camp-001'],
+    status: 'Agendado'
+  },
+  {
+    id: 'evt-002',
+    title: 'Entrega de Cestas - Novembro',
+    description: 'Distribuição mensal das cestas básicas para famílias cadastradas.',
+    date: '2024-11-30',
+    startTime: '09:00',
+    endTime: '12:00',
+    location: 'Sede do Lar - Pátio',
+    isFree: true,
+    frequency: EventFrequency.MONTHLY,
+    linkedCampaignIds: [],
+    status: 'Agendado'
+  }
+];
+
 const STORAGE_KEYS = {
   FAMILIES: 'lar_matilde_families',
   CAMPAIGNS: 'lar_matilde_campaigns',
   PACKAGES: 'lar_matilde_packages',
+  EVENTS: 'lar_matilde_events',
   API_KEY: 'lar_matilde_api_key'
 };
 
@@ -206,6 +236,33 @@ export const StorageService = {
           campaign.isActive = !campaign.isActive;
           localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(campaigns));
       }
+  },
+
+  // Events CRUD
+  getEvents: (): DistributionEvent[] => {
+    const data = localStorage.getItem(STORAGE_KEYS.EVENTS);
+    if (!data) {
+      localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(MOCK_EVENTS));
+      return MOCK_EVENTS;
+    }
+    return JSON.parse(data);
+  },
+
+  saveEvent: (event: DistributionEvent): void => {
+    const events = StorageService.getEvents();
+    const index = events.findIndex(e => e.id === event.id);
+    if (index >= 0) {
+      events[index] = event;
+    } else {
+      events.push(event);
+    }
+    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(events));
+  },
+
+  deleteEvent: (id: string): void => {
+    const events = StorageService.getEvents();
+    const filtered = events.filter(e => e.id !== id);
+    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify(filtered));
   },
 
   // Settings / API Key

@@ -6,21 +6,24 @@ import { Dashboard } from './components/Dashboard';
 import { FamilyList } from './components/FamilyList';
 import { CampaignList } from './components/CampaignList';
 import { PackageList } from './components/PackageList'; 
-import { Settings } from './components/Settings'; // Novo Import
+import { EventList } from './components/EventList';
+import { Settings } from './components/Settings';
 import { StorageService } from './services/storage';
-import { Family, Campaign, ViewState, Package } from './types';
+import { Family, Campaign, ViewState, Package, DistributionEvent } from './types';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>('DASHBOARD');
   const [families, setFamilies] = useState<Family[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
+  const [events, setEvents] = useState<DistributionEvent[]>([]);
 
   // Load initial data
   useEffect(() => {
     setFamilies(StorageService.getFamilies());
     setCampaigns(StorageService.getCampaigns());
     setPackages(StorageService.getPackages());
+    setEvents(StorageService.getEvents());
   }, []);
 
   const handleNavigate = (view: ViewState) => {
@@ -79,6 +82,24 @@ const App: React.FC = () => {
     setCampaigns(StorageService.getCampaigns());
   };
 
+  // Event Handlers
+  const handleAddEvent = (event: DistributionEvent) => {
+    StorageService.saveEvent(event);
+    setEvents(StorageService.getEvents());
+  };
+
+  const handleUpdateEvent = (event: DistributionEvent) => {
+    StorageService.saveEvent(event);
+    setEvents(StorageService.getEvents());
+  };
+
+  const handleDeleteEvent = (id: string) => {
+    if (window.confirm('Tem certeza que deseja cancelar/excluir este evento?')) {
+      StorageService.deleteEvent(id);
+      setEvents(StorageService.getEvents());
+    }
+  };
+
   return (
     <Layout currentView={currentView} onNavigate={handleNavigate}>
       {currentView === 'DASHBOARD' && (
@@ -90,6 +111,15 @@ const App: React.FC = () => {
           onAddFamily={handleAddFamily}
           onUpdateFamily={handleUpdateFamily}
           onDeleteFamily={handleDeleteFamily}
+        />
+      )}
+      {currentView === 'EVENTS' && (
+        <EventList 
+          events={events}
+          campaigns={campaigns}
+          onAddEvent={handleAddEvent}
+          onUpdateEvent={handleUpdateEvent}
+          onDeleteEvent={handleDeleteEvent}
         />
       )}
       {currentView === 'PACKAGES' && (

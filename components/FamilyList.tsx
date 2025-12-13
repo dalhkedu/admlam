@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Family, Child, ClothingSize } from '../types';
 import { parseFamilyData } from '../services/geminiService';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, User, X, Users as UsersIcon, Wand2, Loader2, Sparkles } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, User, X, Users as UsersIcon, Wand2, Loader2, Sparkles, Search, MapPin } from 'lucide-react';
 
 interface FamilyListProps {
   families: Family[];
@@ -40,10 +40,36 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
   const [aiInputText, setAiInputText] = useState('');
   const [isAiProcessing, setIsAiProcessing] = useState(false);
 
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Form State
   const [formData, setFormData] = useState<Family>(emptyFamily);
 
+  // Address Helper State
+  const [cep, setCep] = useState('');
+  const [addressNumber, setAddressNumber] = useState('');
+  const [addressComplement, setAddressComplement] = useState('');
+  const [addressDetails, setAddressDetails] = useState({
+    logradouro: '',
+    bairro: '',
+    localidade: '',
+    uf: ''
+  });
+  const [isLoadingCep, setIsLoadingCep] = useState(false);
+
+  const filteredFamilies = families.filter(family => 
+    family.responsibleName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    family.address.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const handleOpenModal = (family?: Family) => {
+    // Reset address helper states
+    setCep('');
+    setAddressNumber('');
+    setAddressComplement('');
+    setAddressDetails({ logradouro: '', bairro: '', localidade: '', uf: '' });
+
     if (family) {
       setEditingFamily(family);
       setFormData(JSON.parse(JSON.stringify(family))); // Deep copy
@@ -57,6 +83,42 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
       });
     }
     setIsModalOpen(true);
+  };
+
+  // Effect to construct full address when parts change
+  useEffect(() => {
+    if (addressDetails.logradouro) {
+      const fullAddress = `${addressDetails.logradouro}, ${addressNumber}${addressComplement ? ' ' + addressComplement : ''} - ${addressDetails.bairro}, ${addressDetails.localidade}/${addressDetails.uf}`;
+      setFormData(prev => ({ ...prev, address: fullAddress }));
+    }
+  }, [addressDetails, addressNumber, addressComplement]);
+
+  const handleCepBlur = async () => {
+    const cleanCep = cep.replace(/\D/g, '');
+    if (cleanCep.length !== 8) return;
+
+    setIsLoadingCep(true);
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      
+      if (!data.erro) {
+        setAddressDetails({
+          logradouro: data.logradouro,
+          bairro: data.bairro,
+          localidade: data.localidade,
+          uf: data.uf
+        });
+        // Foca no campo número (opcional, via UX o usuário já vai clicar)
+      } else {
+        alert("CEP não encontrado.");
+      }
+    } catch (error) {
+      console.error("Erro ao buscar CEP", error);
+      alert("Erro ao buscar CEP.");
+    } finally {
+      setIsLoadingCep(false);
+    }
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -154,6 +216,20 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
         </div>
       </div>
 
+      {/* Barra de Busca */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+          <input 
+            type="text" 
+            placeholder="Buscar por nome do responsável ou endereço..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm transition-all"
+          />
+        </div>
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b border-slate-200">
@@ -166,7 +242,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {families.map(family => (
+            {filteredFamilies.map(family => (
               <React.Fragment key={family.id}>
                 <tr className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
@@ -244,9 +320,9 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
             ))}
           </tbody>
         </table>
-        {families.length === 0 && (
+        {filteredFamilies.length === 0 && (
           <div className="p-8 text-center text-slate-400">
-            Nenhuma família cadastrada ainda.
+            {searchQuery ? 'Nenhuma família encontrada para os termos da busca.' : 'Nenhuma família cadastrada ainda.'}
           </div>
         )}
       </div>
@@ -350,6 +426,92 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                     <option value="Inativo">Inativo</option>
                   </select>
                 </div>
+                
+                {/* Seção de Endereço */}
+                <div className="col-span-1 md:col-span-2 space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200 mt-2">
+                  <h3 className="font-semibold text-slate-700 flex items-center gap-2 text-sm">
+                    <MapPin size={16} /> Endereço
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="col-span-1 md:col-span-1">
+                      <label className="text-xs font-medium text-slate-600 block mb-1">CEP</label>
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          placeholder="00000-000"
+                          value={cep} 
+                          onChange={e => setCep(e.target.value)}
+                          onBlur={handleCepBlur}
+                          className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                        <div className="absolute right-2 top-2 text-slate-400">
+                          {isLoadingCep ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="col-span-1 md:col-span-3">
+                       <label className="text-xs font-medium text-slate-600 block mb-1">Rua / Logradouro</label>
+                       <input 
+                          readOnly
+                          tabIndex={-1}
+                          placeholder="Preenchido automaticamente..."
+                          value={addressDetails.logradouro} 
+                          className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-600 outline-none"
+                        />
+                    </div>
+                    <div className="col-span-1">
+                       <label className="text-xs font-medium text-slate-600 block mb-1">Número</label>
+                       <input 
+                          type="text"
+                          required={!!addressDetails.logradouro}
+                          value={addressNumber} 
+                          onChange={e => setAddressNumber(e.target.value)}
+                          className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                    </div>
+                    <div className="col-span-1">
+                       <label className="text-xs font-medium text-slate-600 block mb-1">Complemento</label>
+                       <input 
+                          type="text"
+                          value={addressComplement} 
+                          onChange={e => setAddressComplement(e.target.value)}
+                          className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                    </div>
+                    <div className="col-span-1">
+                       <label className="text-xs font-medium text-slate-600 block mb-1">Bairro</label>
+                       <input 
+                          readOnly
+                          tabIndex={-1}
+                          value={addressDetails.bairro} 
+                          className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-600 outline-none"
+                        />
+                    </div>
+                    <div className="col-span-1">
+                       <label className="text-xs font-medium text-slate-600 block mb-1">Cidade/UF</label>
+                       <input 
+                          readOnly
+                          tabIndex={-1}
+                          value={addressDetails.localidade ? `${addressDetails.localidade}/${addressDetails.uf}` : ''} 
+                          className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-600 outline-none"
+                        />
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <label className="text-xs font-medium text-slate-500 block mb-1">Endereço Completo (Resultado Final)</label>
+                    <input 
+                      required
+                      type="text" 
+                      value={formData.address} 
+                      onChange={e => setFormData({...formData, address: e.target.value})}
+                      className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                      placeholder="Utilize os campos acima para gerar ou edite aqui manualmente."
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700">Data Cadastro</label>
                   <input 
@@ -357,16 +519,6 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                     readOnly
                     value={formData.registrationDate ? new Date(formData.registrationDate).toLocaleDateString() : 'Hoje'}
                     className="w-full border border-slate-200 bg-slate-100 text-slate-500 rounded-lg px-3 py-2 outline-none cursor-not-allowed"
-                  />
-                </div>
-                <div className="col-span-1 md:col-span-2 space-y-1">
-                  <label className="text-sm font-medium text-slate-700">Endereço</label>
-                  <input 
-                    required
-                    type="text" 
-                    value={formData.address} 
-                    onChange={e => setFormData({...formData, address: e.target.value})}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                   />
                 </div>
               </div>
