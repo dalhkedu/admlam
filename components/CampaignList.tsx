@@ -211,6 +211,11 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
       return;
     }
 
+    if (formData.endDate < formData.startDate) {
+      alert("A data de fim não pode ser anterior à data de início.");
+      return;
+    }
+
     const isEditing = campaigns.some(c => c.id === formData.id);
 
     if (isEditing) {
@@ -463,7 +468,7 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700">Tipo</label>
                   <select 
@@ -482,6 +487,17 @@ export const CampaignList: React.FC<CampaignListProps> = ({ campaigns, families,
                     min={!campaigns.some(c => c.id === formData.id) ? getTodayDate() : undefined} 
                     value={formData.startDate.toString().split('T')[0]}
                     onChange={e => setFormData({...formData, startDate: e.target.value})}
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-slate-700">Data Fim</label>
+                  <input 
+                    type="date"
+                    required
+                    min={formData.startDate}
+                    value={formData.endDate.toString().split('T')[0]}
+                    onChange={e => setFormData({...formData, endDate: e.target.value})}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none"
                   />
                 </div>

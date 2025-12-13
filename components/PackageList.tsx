@@ -191,12 +191,12 @@ export const PackageList: React.FC<PackageListProps> = ({ packages, onAddPackage
                         required
                         min="0.1"
                         step="0.1"
-                        className="w-20 border border-slate-300 rounded px-3 py-2 text-sm"
-                        value={item.quantity}
-                        onChange={e => updateItem(index, 'quantity', parseFloat(e.target.value))}
+                        className="w-24 border border-slate-300 rounded px-3 py-2 text-sm"
+                        value={item.quantity || ''}
+                        onChange={e => updateItem(index, 'quantity', e.target.value ? parseFloat(e.target.value) : 0)}
                       />
                        <select
-                        className="w-20 border border-slate-300 rounded px-2 py-2 text-sm bg-white text-slate-700"
+                        className="w-24 border border-slate-300 rounded px-2 py-2 text-sm bg-white text-slate-700"
                         value={item.unit}
                         onChange={e => updateItem(index, 'unit', e.target.value)}
                        >
