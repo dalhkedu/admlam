@@ -1,14 +1,12 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
 
 // Safe environment variable access
-// Prevents crash if import.meta.env is undefined in some environments
-// Cast import.meta to any to avoid TypeScript errors if vite types are missing
 const env = (import.meta as any).env || {};
 
-// Configuração com Fallback para garantir funcionamento imediato
-// Os valores à direita do || serão usados se o .env falhar ou não existir
+// Configuração com Fallback
 const firebaseConfig = {
   apiKey: env.VITE_FIREBASE_API_KEY || "AIzaSyCYMaKP81uYn7xM4uBCL2d8v7vh6oUtHDU",
   authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || "lar-matilde-admin.firebaseapp.com",
@@ -28,5 +26,6 @@ if (!firebaseConfig.apiKey) {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
-export { db };
+export { db, auth };

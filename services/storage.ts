@@ -1,8 +1,8 @@
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { collection, getDocs, doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { Family, Campaign, CampaignType, ClothingSize, Package, DistributionEvent, EventFrequency, OrganizationLocation, LocationType, OrganizationBankInfo, OrganizationSettings } from '../types';
+import { Family, Campaign, Package, DistributionEvent, OrganizationLocation, OrganizationBankInfo, OrganizationSettings } from '../types';
 
-// Coleções do Firestore
+// Nomes das sub-coleções
 const COLLECTIONS = {
   FAMILIES: 'families',
   CAMPAIGNS: 'campaigns',
@@ -13,22 +13,36 @@ const COLLECTIONS = {
   SETTINGS: 'settings'
 };
 
-const STORAGE_KEYS = {
-  API_KEY: 'lar_matilde_api_key' // Mantém API Key local por segurança/conveniência
+// Helper: Garante que temos um usuário logado e retorna a referência da coleção DELE
+const getUserCollection = (collectionName: string) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Usuário não autenticado.");
+    // Caminho: organizations/{userId}/{collectionName}
+    return collection(db, 'organizations', user.uid, collectionName);
+};
+
+// Helper: Retorna referência de documento específico do usuário
+const getUserDoc = (collectionName: string, docId: string) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("Usuário não autenticado.");
+    return doc(db, 'organizations', user.uid, collectionName, docId);
 };
 
 // Dados Padrão (Fallbacks)
-const DEFAULT_SETTINGS: OrganizationSettings = { registrationValidityMonths: 12 };
+const DEFAULT_SETTINGS: OrganizationSettings = { 
+    registrationValidityMonths: 12,
+    contactPhone: '',
+    contactEmail: ''
+};
 const DEFAULT_BANK_INFO: OrganizationBankInfo = { accounts: [] };
 
-// Função auxiliar para verificar expirações (Lógica de Negócio)
+// Função auxiliar para verificar expirações
 const checkFamilyExpirations = async (families: Family[], campaigns: Campaign[]): Promise<{ families: Family[], campaigns: Campaign[] }> => {
-    // Busca configurações do Firestore
     let settings = DEFAULT_SETTINGS;
     try {
-        const settingsDoc = await getDoc(doc(db, COLLECTIONS.SETTINGS, 'global'));
-        if (settingsDoc.exists()) {
-            settings = settingsDoc.data() as OrganizationSettings;
+        const settingsSnap = await getDoc(getUserDoc(COLLECTIONS.SETTINGS, 'global'));
+        if (settingsSnap.exists()) {
+            settings = settingsSnap.data() as OrganizationSettings;
         }
     } catch (e) {
         console.warn("Could not fetch settings for expiration check", e);
@@ -38,7 +52,6 @@ const checkFamilyExpirations = async (families: Family[], campaigns: Campaign[])
     let familiesUpdated = false;
     let campaignsUpdated = false;
 
-    // Deep copy para manipulação
     let updatedFamilies = [...families];
     let updatedCampaigns = [...campaigns];
 
@@ -49,14 +62,13 @@ const checkFamilyExpirations = async (families: Family[], campaigns: Campaign[])
             expirationDate.setMonth(expirationDate.getMonth() + settings.registrationValidityMonths);
 
             if (today > expirationDate) {
-                // Expired
                 familiesUpdated = true;
                 const newHistory = [
                     {
                         id: crypto.randomUUID(),
                         date: today.toISOString(),
                         type: 'Suspensão' as const,
-                        description: 'Suspensão automática: Validade do cadastro expirada. Necessário revisão cadastral.',
+                        description: 'Suspensão automática: Validade do cadastro expirada.',
                         author: 'Sistema'
                     },
                     ...(f.history || [])
@@ -82,24 +94,20 @@ const checkFamilyExpirations = async (families: Family[], campaigns: Campaign[])
              return c;
         });
 
-        // Salvar alterações no banco
-        // Nota: Em um sistema real de grande escala, isso seria uma Cloud Function. 
-        // Aqui faremos update no cliente para simplificar.
         const updatePromises: Promise<void>[] = [];
         
         updatedFamilies.forEach(f => {
             const original = families.find(old => old.id === f.id);
             if (original?.status !== f.status) {
-                updatePromises.push(setDoc(doc(db, COLLECTIONS.FAMILIES, f.id), f));
+                updatePromises.push(setDoc(getUserDoc(COLLECTIONS.FAMILIES, f.id), f));
             }
         });
 
         if (campaignsUpdated) {
             updatedCampaigns.forEach(c => {
-                 // Simplificação: Salva apenas se mudou (lógica básica)
                  const original = campaigns.find(old => old.id === c.id);
                  if (original && original.beneficiaryFamilyIds.length !== c.beneficiaryFamilyIds.length) {
-                     updatePromises.push(setDoc(doc(db, COLLECTIONS.CAMPAIGNS, c.id), c));
+                     updatePromises.push(setDoc(getUserDoc(COLLECTIONS.CAMPAIGNS, c.id), c));
                  }
             });
         }
@@ -116,11 +124,12 @@ const checkFamilyExpirations = async (families: Family[], campaigns: Campaign[])
 export const StorageService = {
   // FAMILIES
   getFamilies: async (): Promise<Family[]> => {
-    const snapshot = await getDocs(collection(db, COLLECTIONS.FAMILIES));
+    if (!auth.currentUser) return [];
+    
+    const snapshot = await getDocs(getUserCollection(COLLECTIONS.FAMILIES));
     let families = snapshot.docs.map(doc => doc.data() as Family);
     
-    // Precisamos das campanhas para a lógica de expiração
-    const campSnapshot = await getDocs(collection(db, COLLECTIONS.CAMPAIGNS));
+    const campSnapshot = await getDocs(getUserCollection(COLLECTIONS.CAMPAIGNS));
     let campaigns = campSnapshot.docs.map(doc => doc.data() as Campaign);
 
     const result = await checkFamilyExpirations(families, campaigns);
@@ -128,50 +137,49 @@ export const StorageService = {
   },
 
   saveFamily: async (family: Family): Promise<void> => {
-    await setDoc(doc(db, COLLECTIONS.FAMILIES, family.id), family);
+    await setDoc(getUserDoc(COLLECTIONS.FAMILIES, family.id), family);
   },
 
   deleteFamily: async (id: string): Promise<void> => {
-    await deleteDoc(doc(db, COLLECTIONS.FAMILIES, id));
+    await deleteDoc(getUserDoc(COLLECTIONS.FAMILIES, id));
   },
 
   // PACKAGES
   getPackages: async (): Promise<Package[]> => {
-    const snapshot = await getDocs(collection(db, COLLECTIONS.PACKAGES));
+    if (!auth.currentUser) return [];
+    const snapshot = await getDocs(getUserCollection(COLLECTIONS.PACKAGES));
     return snapshot.docs.map(doc => doc.data() as Package);
   },
 
   savePackage: async (pkg: Package): Promise<void> => {
-    await setDoc(doc(db, COLLECTIONS.PACKAGES, pkg.id), pkg);
+    await setDoc(getUserDoc(COLLECTIONS.PACKAGES, pkg.id), pkg);
   },
 
   deletePackage: async (id: string): Promise<void> => {
-    await deleteDoc(doc(db, COLLECTIONS.PACKAGES, id));
+    await deleteDoc(getUserDoc(COLLECTIONS.PACKAGES, id));
   },
 
   // CAMPAIGNS
   getCampaigns: async (): Promise<Campaign[]> => {
-    const snapshot = await getDocs(collection(db, COLLECTIONS.CAMPAIGNS));
+    if (!auth.currentUser) return [];
+    const snapshot = await getDocs(getUserCollection(COLLECTIONS.CAMPAIGNS));
     let campaigns = snapshot.docs.map(doc => doc.data() as Campaign);
 
-    // Update old active campaigns logic
     const today = new Date().toISOString().split('T')[0];
     const updates: Promise<void>[] = [];
 
     campaigns = campaigns.map(c => {
       let changed = false;
-      // Ensure fields exist
       if (!c.beneficiaryFamilyIds) { c.beneficiaryFamilyIds = []; changed = true; }
       if (!c.packageIds) { c.packageIds = []; changed = true; }
 
-      // Auto close expired
       if (c.isActive && c.endDate < today) {
         c.isActive = false;
         changed = true;
       }
 
       if (changed) {
-          updates.push(setDoc(doc(db, COLLECTIONS.CAMPAIGNS, c.id), c));
+          updates.push(setDoc(getUserDoc(COLLECTIONS.CAMPAIGNS, c.id), c));
       }
       return c;
     });
@@ -181,19 +189,18 @@ export const StorageService = {
   },
 
   saveCampaign: async (campaign: Campaign): Promise<void> => {
-    await setDoc(doc(db, COLLECTIONS.CAMPAIGNS, campaign.id), campaign);
+    await setDoc(getUserDoc(COLLECTIONS.CAMPAIGNS, campaign.id), campaign);
   },
   
   toggleCampaignStatus: async (id: string): Promise<void> => {
-      // Fetch fresh to toggle safely
-      const ref = doc(db, COLLECTIONS.CAMPAIGNS, id);
+      const ref = getUserDoc(COLLECTIONS.CAMPAIGNS, id);
       const snap = await getDoc(ref);
       if (snap.exists()) {
           const c = snap.data() as Campaign;
           const today = new Date().toISOString().split('T')[0];
           
           if (!c.isActive && c.endDate < today) {
-            return; // Cannot reactivate expired date
+            return; 
           }
           
           await setDoc(ref, { ...c, isActive: !c.isActive });
@@ -202,36 +209,38 @@ export const StorageService = {
 
   // EVENTS
   getEvents: async (): Promise<DistributionEvent[]> => {
-    const snapshot = await getDocs(collection(db, COLLECTIONS.EVENTS));
+    if (!auth.currentUser) return [];
+    const snapshot = await getDocs(getUserCollection(COLLECTIONS.EVENTS));
     return snapshot.docs.map(doc => doc.data() as DistributionEvent);
   },
 
   saveEvent: async (event: DistributionEvent): Promise<void> => {
-    await setDoc(doc(db, COLLECTIONS.EVENTS, event.id), event);
+    await setDoc(getUserDoc(COLLECTIONS.EVENTS, event.id), event);
   },
 
   deleteEvent: async (id: string): Promise<void> => {
-    await deleteDoc(doc(db, COLLECTIONS.EVENTS, id));
+    await deleteDoc(getUserDoc(COLLECTIONS.EVENTS, id));
   },
 
   // LOCATIONS
   getLocations: async (): Promise<OrganizationLocation[]> => {
-    const snapshot = await getDocs(collection(db, COLLECTIONS.LOCATIONS));
+    if (!auth.currentUser) return [];
+    const snapshot = await getDocs(getUserCollection(COLLECTIONS.LOCATIONS));
     return snapshot.docs.map(doc => doc.data() as OrganizationLocation);
   },
 
   saveLocation: async (location: OrganizationLocation): Promise<void> => {
-    await setDoc(doc(db, COLLECTIONS.LOCATIONS, location.id), location);
+    await setDoc(getUserDoc(COLLECTIONS.LOCATIONS, location.id), location);
   },
 
   deleteLocation: async (id: string): Promise<void> => {
-    await deleteDoc(doc(db, COLLECTIONS.LOCATIONS, id));
+    await deleteDoc(getUserDoc(COLLECTIONS.LOCATIONS, id));
   },
 
   // BANK INFO
   getBankInfo: async (): Promise<OrganizationBankInfo> => {
-    const docRef = doc(db, COLLECTIONS.BANK_INFO, 'main');
-    const snap = await getDoc(docRef);
+    if (!auth.currentUser) return DEFAULT_BANK_INFO;
+    const snap = await getDoc(getUserDoc(COLLECTIONS.BANK_INFO, 'main'));
     if (snap.exists()) {
         return snap.data() as OrganizationBankInfo;
     }
@@ -239,35 +248,26 @@ export const StorageService = {
   },
 
   saveBankInfo: async (info: OrganizationBankInfo): Promise<void> => {
-    await setDoc(doc(db, COLLECTIONS.BANK_INFO, 'main'), info);
+    await setDoc(getUserDoc(COLLECTIONS.BANK_INFO, 'main'), info);
   },
 
-  // SETTINGS (Global)
+  // SETTINGS (User Global)
   getSettings: async (): Promise<OrganizationSettings> => {
-      const docRef = doc(db, COLLECTIONS.SETTINGS, 'global');
-      const snap = await getDoc(docRef);
+      if (!auth.currentUser) return DEFAULT_SETTINGS;
+      const snap = await getDoc(getUserDoc(COLLECTIONS.SETTINGS, 'global'));
       if (snap.exists()) {
-          return snap.data() as OrganizationSettings;
+          return { ...DEFAULT_SETTINGS, ...snap.data() } as OrganizationSettings;
       }
       return DEFAULT_SETTINGS;
   },
 
   saveSettings: async (settings: OrganizationSettings): Promise<void> => {
-      await setDoc(doc(db, COLLECTIONS.SETTINGS, 'global'), settings);
-  },
-
-  // API KEY (Local Only)
-  getApiKey: (): string => {
-    return localStorage.getItem(STORAGE_KEYS.API_KEY) || '';
-  },
-
-  saveApiKey: (key: string): void => {
-    localStorage.setItem(STORAGE_KEYS.API_KEY, key);
+      await setDoc(getUserDoc(COLLECTIONS.SETTINGS, 'global'), settings);
   },
 
   // DELIVERY REGISTRATION LOGIC
   registerDelivery: async (eventId: string, familyId: string, campaignId: string, campaignTitle: string): Promise<void> => {
-      const eventRef = doc(db, COLLECTIONS.EVENTS, eventId);
+      const eventRef = getUserDoc(COLLECTIONS.EVENTS, eventId);
       const eventSnap = await getDoc(eventRef);
       if (!eventSnap.exists()) return;
       
@@ -282,7 +282,7 @@ export const StorageService = {
       }
 
       // 2. Update Family
-      const familyRef = doc(db, COLLECTIONS.FAMILIES, familyId);
+      const familyRef = getUserDoc(COLLECTIONS.FAMILIES, familyId);
       const familySnap = await getDoc(familyRef);
       if (familySnap.exists()) {
           const family = familySnap.data() as Family;
@@ -298,7 +298,6 @@ export const StorageService = {
           const updatedHistory = [historyEntry, ...(family.history || [])];
           let updates: any = { history: updatedHistory };
 
-          // Registration Review Logic
           if (event.isRegistrationReview) {
               updates.lastReviewDate = today;
               if (family.status !== 'Ativo') {

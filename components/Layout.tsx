@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ViewState } from '../types';
-import { LayoutDashboard, Users, Gift, Menu, X, HeartHandshake, Package, Settings as SettingsIcon, Calendar } from 'lucide-react';
+import { AuthService } from '../services/auth';
+import { LayoutDashboard, Users, Gift, Menu, X, HeartHandshake, Package, Settings as SettingsIcon, Calendar, LogOut } from 'lucide-react';
 
 interface LayoutProps {
   currentView: ViewState;
@@ -18,6 +19,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
     { id: 'CAMPAIGNS', label: 'Campanhas', icon: Gift },
     { id: 'PACKAGES', label: 'Pacotes / Cestas', icon: Package },
   ];
+
+  const handleLogout = async () => {
+    try {
+        await AuthService.logout();
+    } catch (e) {
+        console.error("Erro ao sair", e);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -75,14 +84,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-100 mt-auto">
+        <div className="p-4 border-t border-slate-100 mt-auto space-y-2">
            <button
              onClick={() => {
                 onNavigate('SETTINGS');
                 setSidebarOpen(false);
              }}
              className={`
-               w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors mb-2
+               w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
                ${currentView === 'SETTINGS'
                  ? 'bg-emerald-50 text-emerald-700'
                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}
@@ -91,14 +100,17 @@ export const Layout: React.FC<LayoutProps> = ({ currentView, onNavigate, childre
               <SettingsIcon size={20} />
               Configurações
            </button>
-          <div className="flex items-center gap-3 px-2 pt-2">
-            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xs">
-              AD
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-700">Administrador</p>
-              <p className="text-xs text-slate-500">admin@larmatilde.org</p>
-            </div>
+           
+           <button
+             onClick={handleLogout}
+             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+           >
+              <LogOut size={20} />
+              Sair
+           </button>
+
+          <div className="px-2 pt-2 border-t border-slate-50 mt-2">
+              <p className="text-xs text-slate-400 text-center">Admin Dashboard</p>
           </div>
         </div>
       </aside>

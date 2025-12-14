@@ -1,17 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CampaignType, CampaignItem, PackageItem, Family } from "../types";
-import { StorageService } from "./storage";
 
 // Helper para inicializar a IA dinamicamente
 const getAIClient = async () => {
-  // 1. Tenta buscar das configurações do banco (Firestore)
-  const settings = await StorageService.getSettings();
-  
-  // 2. Usa a chave do banco OU a variável de ambiente como fallback
-  const apiKey = settings.googleApiKey || process.env.API_KEY;
+  // A chave deve vir exclusivamente do ambiente conforme diretrizes de segurança.
+  const apiKey = process.env.API_KEY;
 
   if (!apiKey) {
-    throw new Error("Chave da API Google Gemini não configurada. Vá em Configurações para adicionar.");
+    throw new Error("Chave da API Google Gemini não configurada no ambiente (process.env.API_KEY).");
   }
 
   return new GoogleGenAI({ apiKey });
@@ -46,7 +42,7 @@ export const generateCampaignDescription = async (
     return response.text || "Não foi possível gerar a descrição.";
   } catch (error) {
     console.error("Error generating description:", error);
-    return "Erro ao conectar com a IA. Verifique a Chave de API nas Configurações.";
+    return "Erro ao conectar com a IA. Verifique a Chave de API.";
   }
 };
 

@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, Component } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 
@@ -18,11 +18,10 @@ interface ErrorBoundaryState {
 }
 
 // Error Boundary Simples para capturar erros fatais (Tela Branca)
-class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  public state: ErrorBoundaryState = { hasError: false, error: null };
+  // Explicitly declare props to avoid type errors in strict environments
+  public readonly props: Readonly<ErrorBoundaryProps> = this.props;
 
   static getDerivedStateFromError(error: any): ErrorBoundaryState {
     return { hasError: true, error };

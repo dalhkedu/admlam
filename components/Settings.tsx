@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storage';
 import { OrganizationLocation, LocationType, OrganizationBankInfo, BankAccount, PixKey, OrganizationSettings } from '../types';
-import { Save, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark, Star, Clock, Sparkles, Key } from 'lucide-react';
+import { Save, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark, Star, Clock, Phone, Mail, Contact } from 'lucide-react';
 
 const emptyLocation: OrganizationLocation = {
   id: '',
@@ -28,7 +28,11 @@ export const Settings: React.FC = () => {
   const [status, setStatus] = useState<'idle' | 'saved' | 'saving'>('idle');
   
   // Organization Settings
-  const [orgSettings, setOrgSettings] = useState<OrganizationSettings>({ registrationValidityMonths: 12, googleApiKey: '' });
+  const [orgSettings, setOrgSettings] = useState<OrganizationSettings>({ 
+      registrationValidityMonths: 12, 
+      contactPhone: '',
+      contactEmail: ''
+  });
 
   // Location States
   const [locations, setLocations] = useState<OrganizationLocation[]>([]);
@@ -252,6 +256,49 @@ export const Settings: React.FC = () => {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
         <form onSubmit={handleSaveSettings} className="space-y-6">
             
+            {/* Contato Oficial da ONG */}
+            <div>
+                <div className="flex items-start gap-4 mb-4">
+                    <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+                        <Contact size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">Informações de Contato</h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Defina os canais oficiais de comunicação da ONG.
+                        </p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                         <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                            <Phone size={14} /> Telefone / WhatsApp Oficial
+                        </label>
+                        <input 
+                            type="text"
+                            value={orgSettings.contactPhone || ''}
+                            onChange={e => setOrgSettings({...orgSettings, contactPhone: e.target.value})}
+                            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 bg-white"
+                            placeholder="(00) 00000-0000"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                         <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                            <Mail size={14} /> E-mail Oficial
+                        </label>
+                        <input 
+                            type="email"
+                            value={orgSettings.contactEmail || ''}
+                            onChange={e => setOrgSettings({...orgSettings, contactEmail: e.target.value})}
+                            className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 bg-white"
+                            placeholder="contato@ong.org"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="border-t border-slate-100 my-6"></div>
+
             {/* Configuração de Validade */}
             <div>
                 <div className="flex items-start gap-4 mb-4">
@@ -277,38 +324,6 @@ export const Settings: React.FC = () => {
                         className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-center text-slate-900 bg-white"
                     />
                     <span className="text-sm text-slate-600">meses</span>
-                </div>
-            </div>
-
-            <div className="border-t border-slate-100 my-6"></div>
-
-            {/* Configuração de IA */}
-            <div>
-                <div className="flex items-start gap-4 mb-4">
-                    <div className="p-3 bg-purple-50 text-purple-600 rounded-lg">
-                        <Sparkles size={24} />
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-800">Inteligência Artificial (Google Gemini)</h3>
-                        <p className="text-sm text-slate-500 mt-1">
-                        Configure a chave de API para habilitar recursos como geração automática de descrições de campanhas e leitura de cadastros.
-                        </p>
-                    </div>
-                </div>
-                <div className="space-y-2 max-w-lg">
-                    <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                        <Key size={16} /> Chave da API (Gemini API Key)
-                    </label>
-                    <input 
-                        type="password"
-                        value={orgSettings.googleApiKey || ''}
-                        onChange={e => setOrgSettings({...orgSettings, googleApiKey: e.target.value})}
-                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 bg-white focus:ring-2 focus:ring-purple-500 outline-none font-mono text-sm"
-                        placeholder="AIzaSy..."
-                    />
-                    <p className="text-xs text-slate-400">
-                        A chave será salva no banco de dados da aplicação. Certifique-se de usar uma chave segura.
-                    </p>
                 </div>
             </div>
 
@@ -481,7 +496,7 @@ export const Settings: React.FC = () => {
                         </div>
                         <div className="text-sm text-slate-600 space-y-1 pl-1">
                             <p className="line-clamp-2">{loc.address}</p>
-                            {loc.phone && <p className="text-slate-500">Tel: {loc.phone}</p>}
+                            {loc.phone && <p className="text-slate-500 flex items-center gap-1"><Phone size={12}/> {loc.phone}</p>}
                             {loc.operatingHours && <p className="text-slate-500">Horário: {loc.operatingHours}</p>}
                         </div>
                     </div>
@@ -695,7 +710,9 @@ export const Settings: React.FC = () => {
                         </select>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-sm font-medium text-slate-700">Telefone</label>
+                        <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                           <Phone size={14}/> Telefone para Contato
+                        </label>
                         <input 
                             value={locationForm.phone || ''}
                             onChange={e => setLocationForm({...locationForm, phone: e.target.value})}
