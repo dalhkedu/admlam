@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { DistributionEvent, EventFrequency, Campaign, Family } from '../types';
 import { StorageService } from '../services/storage';
 import { Plus, Calendar, MapPin, Clock, DollarSign, Edit2, Trash2, X, Link, Check, Repeat, Copy, Search, Loader2, Filter, AlertTriangle, Car, Ticket, Box, RefreshCw, CheckCircle2, User } from 'lucide-react';
+import { maskCEP, sanitizeInput } from '../utils/masks';
 
 interface EventListProps {
   events: DistributionEvent[];
@@ -125,10 +126,10 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
       
       if (!data.erro) {
         setAddressDetails({
-          logradouro: data.logradouro,
-          bairro: data.bairro,
-          localidade: data.localidade,
-          uf: data.uf
+          logradouro: sanitizeInput(data.logradouro),
+          bairro: sanitizeInput(data.bairro),
+          localidade: sanitizeInput(data.localidade),
+          uf: sanitizeInput(data.uf)
         });
       } else {
         alert("CEP não encontrado.");
@@ -475,7 +476,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                 <input 
                   required
                   value={formData.title}
-                  onChange={e => setFormData({...formData, title: e.target.value})}
+                  onChange={e => setFormData({...formData, title: sanitizeInput(e.target.value)})}
                   className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                   placeholder="Ex: Entrega de Cestas Mensais"
                 />
@@ -486,7 +487,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                   <textarea 
                     rows={2}
                     value={formData.description}
-                    onChange={e => setFormData({...formData, description: e.target.value})}
+                    onChange={e => setFormData({...formData, description: sanitizeInput(e.target.value)})}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
                     placeholder="Detalhes sobre o evento..."
                   />
@@ -584,8 +585,9 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         <input 
                         type="text" 
                         placeholder="00000-000"
+                        maxLength={9}
                         value={cep} 
-                        onChange={e => setCep(e.target.value)}
+                        onChange={e => setCep(maskCEP(e.target.value))}
                         onBlur={handleCepBlur}
                         className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
                         />
@@ -610,7 +612,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                         type="text"
                         required={!!addressDetails.logradouro}
                         value={addressNumber} 
-                        onChange={e => setAddressNumber(e.target.value)}
+                        onChange={e => setAddressNumber(sanitizeInput(e.target.value))}
                         className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
                     />
                     </div>
@@ -619,7 +621,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                     <input 
                         type="text"
                         value={addressComplement} 
-                        onChange={e => setAddressComplement(e.target.value)}
+                        onChange={e => setAddressComplement(sanitizeInput(e.target.value))}
                         className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
                     />
                     </div>
@@ -649,7 +651,7 @@ export const EventList: React.FC<EventListProps> = ({ events, campaigns, onAddEv
                     required
                     type="text" 
                     value={formData.location} 
-                    onChange={e => setFormData({...formData, location: e.target.value})}
+                    onChange={e => setFormData({...formData, location: sanitizeInput(e.target.value)})}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-900 bg-white"
                     placeholder="Endereço gerado ou nome do local..."
                     />

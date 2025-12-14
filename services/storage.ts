@@ -31,6 +31,7 @@ const getUserDoc = (collectionName: string, docId: string) => {
 // Dados Padrão (Fallbacks)
 const DEFAULT_SETTINGS: OrganizationSettings = { 
     registrationValidityMonths: 12,
+    defaultVisitIntervalMonths: 6, // Visitas semestrais por padrão
     contactPhone: '',
     contactEmail: ''
 };
@@ -42,7 +43,7 @@ const checkFamilyExpirations = async (families: Family[], campaigns: Campaign[])
     try {
         const settingsSnap = await getDoc(getUserDoc(COLLECTIONS.SETTINGS, 'global'));
         if (settingsSnap.exists()) {
-            settings = settingsSnap.data() as OrganizationSettings;
+            settings = { ...DEFAULT_SETTINGS, ...settingsSnap.data() };
         }
     } catch (e) {
         console.warn("Could not fetch settings for expiration check", e);

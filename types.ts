@@ -33,7 +33,7 @@ export interface Child {
 export interface FamilyHistoryEntry {
   id: string;
   date: string; // ISO String
-  type: 'Cadastro' | 'Atualização' | 'Suspensão' | 'Reativação' | 'Ocorrência' | 'Entrega' | 'Outro';
+  type: 'Cadastro' | 'Atualização' | 'Suspensão' | 'Reativação' | 'Ocorrência' | 'Entrega' | 'Visita' | 'Outro';
   description: string;
   author?: string; // Quem fez a alteração (simulado por enquanto)
 }
@@ -188,8 +188,10 @@ export interface OrganizationBankInfo {
 
 export interface OrganizationSettings {
     registrationValidityMonths: number; // Quantidade de meses que o cadastro é válido
+    defaultVisitIntervalMonths: number; // Periodicidade padrão de visitas
     contactPhone?: string; // Telefone geral da ONG
     contactEmail?: string; // Email geral da ONG
+    googleApiKey?: string; // Chave da API Gemini específica da organização
 }
 
 export type ViewState = 'DASHBOARD' | 'FAMILIES' | 'CAMPAIGNS' | 'PACKAGES' | 'EVENTS' | 'SETTINGS';

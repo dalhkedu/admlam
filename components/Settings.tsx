@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storage';
 import { OrganizationLocation, LocationType, OrganizationBankInfo, BankAccount, PixKey, OrganizationSettings } from '../types';
-import { Save, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark, Star, Clock, Phone, Mail, Contact } from 'lucide-react';
+import { maskPhone, maskCNPJ, maskCPF, maskCEP, sanitizeInput } from '../utils/masks';
+import { Save, CheckCircle, MapPin, Building2, Store, Truck, Plus, Trash2, Edit2, Search, Loader2, X, CreditCard, Wallet, Landmark, Star, Clock, Phone, Mail, Contact, Sparkles, Key, Home } from 'lucide-react';
 
 const emptyLocation: OrganizationLocation = {
   id: '',
@@ -30,8 +31,10 @@ export const Settings: React.FC = () => {
   // Organization Settings
   const [orgSettings, setOrgSettings] = useState<OrganizationSettings>({ 
       registrationValidityMonths: 12, 
+      defaultVisitIntervalMonths: 6,
       contactPhone: '',
-      contactEmail: ''
+      contactEmail: '',
+      googleApiKey: ''
   });
 
   // Location States
@@ -201,6 +204,15 @@ export const Settings: React.FC = () => {
     }));
   };
 
+  const handlePixKeyChange = (val: string) => {
+      let maskedVal = val;
+      if (newPixKey.type === 'CPF') maskedVal = maskCPF(val);
+      if (newPixKey.type === 'CNPJ') maskedVal = maskCNPJ(val);
+      if (newPixKey.type === 'Telefone') maskedVal = maskPhone(val);
+
+      setNewPixKey({...newPixKey, key: maskedVal});
+  }
+
   // Address/CEP Logic
   useEffect(() => {
     if (addressDetails.logradouro) {
@@ -220,10 +232,10 @@ export const Settings: React.FC = () => {
       
       if (!data.erro) {
         setAddressDetails({
-          logradouro: data.logradouro,
-          bairro: data.bairro,
-          localidade: data.localidade,
-          uf: data.uf
+          logradouro: sanitizeInput(data.logradouro),
+          bairro: sanitizeInput(data.bairro),
+          localidade: sanitizeInput(data.localidade),
+          uf: sanitizeInput(data.uf)
         });
       } else {
         alert("CEP não encontrado.");
@@ -276,8 +288,9 @@ export const Settings: React.FC = () => {
                         </label>
                         <input 
                             type="text"
+                            maxLength={15}
                             value={orgSettings.contactPhone || ''}
-                            onChange={e => setOrgSettings({...orgSettings, contactPhone: e.target.value})}
+                            onChange={e => setOrgSettings({...orgSettings, contactPhone: maskPhone(e.target.value)})}
                             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 bg-white"
                             placeholder="(00) 00000-0000"
                         />
@@ -289,7 +302,7 @@ export const Settings: React.FC = () => {
                         <input 
                             type="email"
                             value={orgSettings.contactEmail || ''}
-                            onChange={e => setOrgSettings({...orgSettings, contactEmail: e.target.value})}
+                            onChange={e => setOrgSettings({...orgSettings, contactEmail: sanitizeInput(e.target.value)})}
                             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 bg-white"
                             placeholder="contato@ong.org"
                         />
@@ -299,31 +312,89 @@ export const Settings: React.FC = () => {
 
             <div className="border-t border-slate-100 my-6"></div>
 
-            {/* Configuração de Validade */}
+            {/* Configuração de Prazos e Validade */}
             <div>
                 <div className="flex items-start gap-4 mb-4">
                     <div className="p-3 bg-orange-50 text-orange-600 rounded-lg">
                         <Clock size={24} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-slate-800">Validade do Cadastro</h3>
+                        <h3 className="text-lg font-bold text-slate-800">Prazos e Validades</h3>
                         <p className="text-sm text-slate-500 mt-1">
-                        Defina por quanto tempo o cadastro de uma família permanece ativo antes de exigir revisão.
-                        Famílias com cadastro vencido serão suspensas e removidas de campanhas.
+                        Configure as regras de tempo para expiração de cadastros e periodicidade de visitas.
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <label className="text-sm font-medium text-slate-700">Período de Validade:</label>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <label className="text-sm font-bold text-slate-700 block mb-2">Validade do Cadastro (Recadastramento)</label>
+                        <p className="text-xs text-slate-500 mb-3">Após este período, a família será marcada como "Suspensa" até revisão.</p>
+                        <div className="flex items-center gap-3">
+                            <input 
+                                type="number"
+                                min="1"
+                                required
+                                value={orgSettings.registrationValidityMonths}
+                                onChange={e => setOrgSettings({...orgSettings, registrationValidityMonths: parseInt(e.target.value) || 12})}
+                                className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-center text-slate-900 bg-white"
+                            />
+                            <span className="text-sm text-slate-600">meses</span>
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
+                        <label className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-2">
+                            <Home size={16} className="text-emerald-600"/> Periodicidade de Visitas
+                        </label>
+                        <p className="text-xs text-slate-500 mb-3">Tempo ideal entre visitas domiciliares.</p>
+                        <div className="flex items-center gap-3">
+                            <input 
+                                type="number"
+                                min="1"
+                                required
+                                value={orgSettings.defaultVisitIntervalMonths || 6}
+                                onChange={e => setOrgSettings({...orgSettings, defaultVisitIntervalMonths: parseInt(e.target.value) || 6})}
+                                className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-center text-slate-900 bg-white"
+                            />
+                            <span className="text-sm text-slate-600">meses</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="border-t border-slate-100 my-6"></div>
+
+            {/* Integração com IA (API Key) */}
+            <div>
+                <div className="flex items-start gap-4 mb-4">
+                    <div className="p-3 bg-purple-50 text-purple-600 rounded-lg">
+                        <Sparkles size={24} />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">Integração com IA (Google Gemini)</h3>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Configure sua chave de API para habilitar recursos inteligentes como cadastro rápido por texto e sugestão de descrições.
+                        </p>
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                        <Key size={14} /> Chave de API (Google Gemini)
+                    </label>
                     <input 
-                        type="number"
-                        min="1"
-                        required
-                        value={orgSettings.registrationValidityMonths}
-                        onChange={e => setOrgSettings({...orgSettings, registrationValidityMonths: parseInt(e.target.value) || 12})}
-                        className="w-24 border border-slate-300 rounded-lg px-3 py-2 text-center text-slate-900 bg-white"
+                        type="password"
+                        value={orgSettings.googleApiKey || ''}
+                        onChange={e => setOrgSettings({...orgSettings, googleApiKey: e.target.value})}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-900 bg-white font-mono"
+                        placeholder="AIzaSy..."
                     />
-                    <span className="text-sm text-slate-600">meses</span>
+                    <p className="text-xs text-slate-500">
+                        Sua chave será armazenada de forma segura nas configurações da sua organização. 
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-purple-600 hover:underline ml-1">
+                            Obter chave aqui.
+                        </a>
+                    </p>
                 </div>
             </div>
 
@@ -407,7 +478,7 @@ export const Settings: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600 mb-3">
                             <div>
                                 <span className="block text-xs text-slate-400">Agência / Conta</span>
-                                <span className="font-mono">{acc.agency} / {acc.accountNumber}</span>
+                                <span className="font-mono">{sanitizeInput(acc.agency)} / {sanitizeInput(acc.accountNumber)}</span>
                             </div>
                             <div>
                                 <span className="block text-xs text-slate-400">Titular</span>
@@ -508,9 +579,9 @@ export const Settings: React.FC = () => {
             )}
         </div>
       </div>
-
-       {/* Modal de Conta Bancária */}
-       {isBankModalOpen && (
+      
+      {/* Modais de Banco e Local (Omitidos para brevidade, pois já existem) */}
+      {isBankModalOpen && (
          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
              <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
@@ -521,6 +592,7 @@ export const Settings: React.FC = () => {
              </div>
 
              <form onSubmit={handleSaveAccount} className="p-6 space-y-6">
+                {/* ... Campos da Conta ... (Reutilizando estrutura existente) */}
                <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
                   <span className="text-sm font-medium text-slate-700">Esta é a conta principal da ONG?</span>
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -541,7 +613,7 @@ export const Settings: React.FC = () => {
                           required
                           placeholder="Ex: Banco do Brasil"
                           value={accountForm.bankName}
-                          onChange={e => setAccountForm({...accountForm, bankName: e.target.value})}
+                          onChange={e => setAccountForm({...accountForm, bankName: sanitizeInput(e.target.value)})}
                           className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                       />
                   </div>
@@ -549,7 +621,8 @@ export const Settings: React.FC = () => {
                       <label className="text-sm font-medium text-slate-700">CNPJ Titular</label>
                       <input 
                           value={accountForm.cnpj}
-                          onChange={e => setAccountForm({...accountForm, cnpj: e.target.value})}
+                          maxLength={18}
+                          onChange={e => setAccountForm({...accountForm, cnpj: maskCNPJ(e.target.value)})}
                           className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white font-mono"
                           placeholder="00.000.000/0001-00"
                       />
@@ -559,7 +632,7 @@ export const Settings: React.FC = () => {
                       <input 
                           required
                           value={accountForm.accountHolder}
-                          onChange={e => setAccountForm({...accountForm, accountHolder: e.target.value})}
+                          onChange={e => setAccountForm({...accountForm, accountHolder: sanitizeInput(e.target.value)})}
                           className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                       />
                   </div>
@@ -568,7 +641,7 @@ export const Settings: React.FC = () => {
                       <input 
                           required
                           value={accountForm.agency}
-                          onChange={e => setAccountForm({...accountForm, agency: e.target.value})}
+                          onChange={e => setAccountForm({...accountForm, agency: sanitizeInput(e.target.value)})}
                           className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                       />
                   </div>
@@ -577,12 +650,12 @@ export const Settings: React.FC = () => {
                       <input 
                           required
                           value={accountForm.accountNumber}
-                          onChange={e => setAccountForm({...accountForm, accountNumber: e.target.value})}
+                          onChange={e => setAccountForm({...accountForm, accountNumber: sanitizeInput(e.target.value)})}
                           className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                       />
                   </div>
                </div>
-
+               
                {/* Seção de Chaves Pix Interna */}
                <div className="border-t border-slate-100 pt-4">
                   <h3 className="font-semibold text-slate-700 mb-3 flex items-center gap-2">
@@ -604,7 +677,7 @@ export const Settings: React.FC = () => {
                     <input 
                       placeholder="Chave Pix"
                       value={newPixKey.key}
-                      onChange={e => setNewPixKey({...newPixKey, key: e.target.value})}
+                      onChange={e => handlePixKeyChange(e.target.value)}
                       className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none text-slate-900 bg-white"
                     />
                     <button 
@@ -648,9 +721,6 @@ export const Settings: React.FC = () => {
                       <p className="text-center text-sm text-slate-400">Nenhuma chave Pix adicionada.</p>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 mt-2">
-                    * Selecione a chave principal clicando no botão de seleção circular.
-                  </p>
                </div>
 
                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
@@ -668,13 +738,10 @@ export const Settings: React.FC = () => {
                   Salvar Conta
                 </button>
               </div>
-
              </form>
            </div>
          </div>
        )}
-
-       {/* Modal de Local */}
        {isLocationModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -686,18 +753,20 @@ export const Settings: React.FC = () => {
             </div>
 
             <form onSubmit={handleSaveLocation} className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* ... Campos de Local ... (Reutilizando estrutura existente) */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <label className="text-sm font-medium text-slate-700">Nome do Local</label>
                         <input 
                             required
                             placeholder="Ex: Sede Administrativa, Bazar Centro"
                             value={locationForm.name}
-                            onChange={e => setLocationForm({...locationForm, name: e.target.value})}
+                            onChange={e => setLocationForm({...locationForm, name: sanitizeInput(e.target.value)})}
                             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                         />
                     </div>
-                    <div className="space-y-1">
+                    {/* ... Outros campos ... */}
+                     <div className="space-y-1">
                         <label className="text-sm font-medium text-slate-700">Tipo</label>
                         <select 
                             value={locationForm.type}
@@ -714,8 +783,9 @@ export const Settings: React.FC = () => {
                            <Phone size={14}/> Telefone para Contato
                         </label>
                         <input 
+                            maxLength={15}
                             value={locationForm.phone || ''}
-                            onChange={e => setLocationForm({...locationForm, phone: e.target.value})}
+                            onChange={e => setLocationForm({...locationForm, phone: maskPhone(e.target.value)})}
                             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                             placeholder="(00) 0000-0000"
                         />
@@ -724,104 +794,105 @@ export const Settings: React.FC = () => {
                         <label className="text-sm font-medium text-slate-700">Horário de Funcionamento</label>
                         <input 
                             value={locationForm.operatingHours || ''}
-                            onChange={e => setLocationForm({...locationForm, operatingHours: e.target.value})}
+                            onChange={e => setLocationForm({...locationForm, operatingHours: sanitizeInput(e.target.value)})}
                             className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                             placeholder="Ex: Seg-Sex 08:00 às 18:00"
                         />
                     </div>
                 </div>
-
-                {/* Seção de Endereço Automático */}
-              <div className="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <h3 className="font-semibold text-slate-700 flex items-center gap-2 text-sm">
-                    <MapPin size={16} /> Endereço
-                </h3>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="col-span-1 md:col-span-1">
-                    <label className="text-xs font-medium text-slate-600 block mb-1">CEP</label>
-                    <div className="relative">
-                        <input 
-                        type="text" 
-                        placeholder="00000-000"
-                        value={cep} 
-                        onChange={e => setCep(e.target.value)}
-                        onBlur={handleCepBlur}
-                        className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
-                        />
-                        <div className="absolute right-2 top-2 text-slate-400">
-                        {isLoadingCep ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                {/* Endereço auto ... */}
+                <div className="space-y-3 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                     <h3 className="font-semibold text-slate-700 flex items-center gap-2 text-sm">
+                         <MapPin size={16} /> Endereço
+                     </h3>
+                     {/* Campos de CEP, Rua, etc... */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="col-span-1 md:col-span-1">
+                        <label className="text-xs font-medium text-slate-600 block mb-1">CEP</label>
+                        <div className="relative">
+                            <input 
+                            type="text" 
+                            placeholder="00000-000"
+                            maxLength={9}
+                            value={cep} 
+                            onChange={e => setCep(maskCEP(e.target.value))}
+                            onBlur={handleCepBlur}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
+                            />
+                            <div className="absolute right-2 top-2 text-slate-400">
+                            {isLoadingCep ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                            </div>
                         </div>
-                    </div>
-                    </div>
-                    <div className="col-span-1 md:col-span-3">
-                    <label className="text-xs font-medium text-slate-600 block mb-1">Rua / Logradouro</label>
-                    <input 
-                        readOnly
-                        tabIndex={-1}
-                        placeholder="Preenchido automaticamente..."
-                        value={addressDetails.logradouro} 
-                        className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
-                    />
-                    </div>
-                    <div className="col-span-1">
-                    <label className="text-xs font-medium text-slate-600 block mb-1">Número</label>
-                    <input 
-                        type="text"
-                        required={!!addressDetails.logradouro}
-                        value={addressNumber} 
-                        onChange={e => setAddressNumber(e.target.value)}
-                        className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
-                    />
-                    </div>
-                    <div className="col-span-1">
-                    <label className="text-xs font-medium text-slate-600 block mb-1">Complemento</label>
-                    <input 
-                        type="text"
-                        value={addressComplement} 
-                        onChange={e => setAddressComplement(e.target.value)}
-                        className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
-                    />
-                    </div>
-                    <div className="col-span-1">
-                    <label className="text-xs font-medium text-slate-600 block mb-1">Bairro</label>
-                    <input 
-                        readOnly
-                        tabIndex={-1}
-                        value={addressDetails.bairro} 
-                        className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
-                    />
-                    </div>
-                    <div className="col-span-1">
-                    <label className="text-xs font-medium text-slate-600 block mb-1">Cidade/UF</label>
-                    <input 
-                        readOnly
-                        tabIndex={-1}
-                        value={addressDetails.localidade ? `${addressDetails.localidade}/${addressDetails.uf}` : ''} 
-                        className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
-                    />
+                        </div>
+                        {/* ... */}
+                        <div className="col-span-1 md:col-span-3">
+                        <label className="text-xs font-medium text-slate-600 block mb-1">Rua / Logradouro</label>
+                        <input 
+                            readOnly
+                            tabIndex={-1}
+                            placeholder="Preenchido automaticamente..."
+                            value={addressDetails.logradouro} 
+                            className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
+                        />
+                        </div>
+                        <div className="col-span-1">
+                        <label className="text-xs font-medium text-slate-600 block mb-1">Número</label>
+                        <input 
+                            type="text"
+                            required={!!addressDetails.logradouro}
+                            value={addressNumber} 
+                            onChange={e => setAddressNumber(sanitizeInput(e.target.value))}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
+                        />
+                        </div>
+                        <div className="col-span-1">
+                        <label className="text-xs font-medium text-slate-600 block mb-1">Complemento</label>
+                        <input 
+                            type="text"
+                            value={addressComplement} 
+                            onChange={e => setAddressComplement(sanitizeInput(e.target.value))}
+                            className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
+                        />
+                        </div>
+                        <div className="col-span-1">
+                        <label className="text-xs font-medium text-slate-600 block mb-1">Bairro</label>
+                        <input 
+                            readOnly
+                            tabIndex={-1}
+                            value={addressDetails.bairro} 
+                            className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
+                        />
+                        </div>
+                        <div className="col-span-1">
+                        <label className="text-xs font-medium text-slate-600 block mb-1">Cidade/UF</label>
+                        <input 
+                            readOnly
+                            tabIndex={-1}
+                            value={addressDetails.localidade ? `${addressDetails.localidade}/${addressDetails.uf}` : ''} 
+                            className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
+                        />
+                        </div>
+                     </div>
+                     
+                     <div className="pt-2">
+                        <label className="text-xs font-medium text-slate-500 block mb-1">Endereço Completo</label>
+                        <input 
+                        required
+                        type="text" 
+                        value={locationForm.address} 
+                        onChange={e => setLocationForm({...locationForm, address: sanitizeInput(e.target.value)})}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-900 bg-white"
+                        placeholder="Endereço gerado ou digitado manualmente..."
+                        />
                     </div>
                 </div>
 
-                <div className="pt-2">
-                    <label className="text-xs font-medium text-slate-500 block mb-1">Endereço Completo</label>
-                    <input 
-                    required
-                    type="text" 
-                    value={locationForm.address} 
-                    onChange={e => setLocationForm({...locationForm, address: e.target.value})}
-                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all text-slate-900 bg-white"
-                    placeholder="Endereço gerado ou digitado manualmente..."
-                    />
-                </div>
-              </div>
-
-               <div className="space-y-1">
+                 <div className="space-y-1">
                   <label className="text-sm font-medium text-slate-700">Observações / Notas</label>
                   <textarea 
                     rows={2}
                     value={locationForm.notes || ''}
-                    onChange={e => setLocationForm({...locationForm, notes: e.target.value})}
+                    onChange={e => setLocationForm({...locationForm, notes: sanitizeInput(e.target.value)})}
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 outline-none text-sm text-slate-900 bg-white"
                     placeholder="Instruções de acesso, referência, etc."
                   />

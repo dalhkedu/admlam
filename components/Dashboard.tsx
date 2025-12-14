@@ -1,14 +1,15 @@
 import React from 'react';
-import { Family, Campaign } from '../types';
-import { Users, Gift, Baby, AlertCircle } from 'lucide-react';
+import { Family, Campaign, OrganizationSettings } from '../types';
+import { Users, Gift, Baby, AlertCircle, Home, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface DashboardProps {
   families: Family[];
   campaigns: Campaign[];
+  settings: OrganizationSettings | null;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ families, campaigns }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ families, campaigns, settings }) => {
   const activeFamilies = families.filter(f => f.status === 'Ativo');
   const totalChildren = families.reduce((acc, curr) => acc + curr.children.length, 0);
   const activeCampaigns = campaigns.filter(c => c.isActive);
@@ -25,6 +26,37 @@ export const Dashboard: React.FC<DashboardProps> = ({ families, campaigns }) => 
       restante: 100 - Math.round(progress)
     };
   });
+
+  // Cálcula das próximas visitas
+  const getUpcomingVisits = () => {
+      const intervalMonths = settings?.defaultVisitIntervalMonths || 6;
+      
+      const visits = activeFamilies.map(family => {
+          // Pega a última visita feita
+          const lastVisitEntry = family.history
+              ?.filter(h => h.type === 'Visita')
+              .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+          
+          // Se nunca teve visita, usa data de cadastro
+          const lastDate = lastVisitEntry ? new Date(lastVisitEntry.date) : new Date(family.registrationDate);
+          
+          // Calcula próxima visita
+          const nextVisit = new Date(lastDate);
+          nextVisit.setMonth(nextVisit.getMonth() + intervalMonths);
+          
+          return {
+              family,
+              nextVisit,
+              lastVisitDate: lastDate,
+              isLate: nextVisit < new Date()
+          };
+      });
+
+      // Ordena por data (mais antigas/atrasadas primeiro) e pega as top 5
+      return visits.sort((a, b) => a.nextVisit.getTime() - b.nextVisit.getTime()).slice(0, 5);
+  };
+
+  const upcomingVisits = getUpcomingVisits();
 
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between">
@@ -65,9 +97,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ families, campaigns }) => 
           color="bg-purple-500" 
         />
         <StatCard 
-          title="Ações Pendentes" 
-          value="2" 
-          icon={AlertCircle} 
+          title="Visitas Pendentes" 
+          value={upcomingVisits.filter(v => v.isLate).length} 
+          icon={Home} 
           color="bg-orange-400" 
         />
       </div>
@@ -96,26 +128,43 @@ export const Dashboard: React.FC<DashboardProps> = ({ families, campaigns }) => 
           )}
         </div>
 
-        {/* Quick Actions / Recent */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">Próximos Eventos</h3>
-          <div className="space-y-4">
-            <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-              <div className="flex items-center gap-2 mb-1">
-                <Gift size={16} className="text-emerald-600" />
-                <span className="font-semibold text-emerald-800 text-sm">Entrega de Cestas</span>
-              </div>
-              <p className="text-xs text-emerald-600">30 de Outubro - 09:00</p>
-            </div>
-            
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-              <div className="flex items-center gap-2 mb-1">
-                <Users size={16} className="text-blue-600" />
-                <span className="font-semibold text-blue-800 text-sm">Reunião Mensal</span>
-              </div>
-              <p className="text-xs text-blue-600">05 de Novembro - 14:00</p>
-            </div>
+        {/* Upcoming Visits */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex flex-col">
+          <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+              <Home size={18} className="text-emerald-600"/> Cronograma de Visitas
+          </h3>
+          <div className="flex-1 overflow-y-auto space-y-3">
+             {upcomingVisits.length > 0 ? (
+                 upcomingVisits.map((item, idx) => (
+                    <div key={idx} className={`p-3 rounded-lg border flex items-center justify-between ${
+                        item.isLate ? 'bg-red-50 border-red-100' : 'bg-slate-50 border-slate-100'
+                    }`}>
+                        <div>
+                            <div className="font-semibold text-slate-700 text-sm">{item.family.responsibleName}</div>
+                            <div className="text-xs text-slate-500 flex items-center gap-1">
+                                <Clock size={10} />
+                                Previsto: {item.nextVisit.toLocaleDateString()}
+                            </div>
+                        </div>
+                        {item.isLate && (
+                            <span className="text-[10px] font-bold bg-red-100 text-red-600 px-2 py-1 rounded-full">
+                                Atrasada
+                            </span>
+                        )}
+                        {!item.isLate && (
+                             <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
+                                Em breve
+                             </span>
+                        )}
+                    </div>
+                 ))
+             ) : (
+                 <p className="text-slate-400 text-center text-sm py-4">Nenhuma visita pendente.</p>
+             )}
           </div>
+          <p className="text-xs text-slate-400 mt-4 text-center">
+              Baseado no intervalo de {settings?.defaultVisitIntervalMonths || 6} meses.
+          </p>
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@ import { Settings } from './components/Settings';
 import { Login } from './components/Login';
 import { StorageService } from './services/storage';
 import { AuthService } from './services/auth';
-import { Family, Campaign, ViewState, Package, DistributionEvent, OrganizationBankInfo } from './types';
+import { Family, Campaign, ViewState, Package, DistributionEvent, OrganizationBankInfo, OrganizationSettings } from './types';
 import { Loader2 } from 'lucide-react';
 import { User } from 'firebase/auth';
 
@@ -25,6 +25,7 @@ const App: React.FC = () => {
   const [packages, setPackages] = useState<Package[]>([]);
   const [events, setEvents] = useState<DistributionEvent[]>([]);
   const [bankInfo, setBankInfo] = useState<OrganizationBankInfo>({ accounts: [] });
+  const [settings, setSettings] = useState<OrganizationSettings | null>(null);
 
   // 1. Monitor Auth State
   useEffect(() => {
@@ -40,6 +41,7 @@ const App: React.FC = () => {
               setPackages([]);
               setEvents([]);
               setBankInfo({ accounts: [] });
+              setSettings(null);
           }
       });
       return () => unsubscribe();
@@ -50,18 +52,20 @@ const App: React.FC = () => {
     setIsDataLoading(true); 
     try {
         // As funções do StorageService agora buscam dados baseados no auth.currentUser
-        const [fams, camps, pkgs, evts, bank] = await Promise.all([
+        const [fams, camps, pkgs, evts, bank, sets] = await Promise.all([
             StorageService.getFamilies(),
             StorageService.getCampaigns(),
             StorageService.getPackages(),
             StorageService.getEvents(),
-            StorageService.getBankInfo()
+            StorageService.getBankInfo(),
+            StorageService.getSettings()
         ]);
         setFamilies(fams);
         setCampaigns(camps);
         setPackages(pkgs);
         setEvents(evts);
         setBankInfo(bank);
+        setSettings(sets);
     } catch (error) {
         console.error("Failed to fetch data:", error);
         alert("Erro ao carregar dados do servidor.");
@@ -176,7 +180,11 @@ const App: React.FC = () => {
   return (
     <Layout currentView={currentView} onNavigate={handleNavigate}>
       {currentView === 'DASHBOARD' && (
-        <Dashboard families={families} campaigns={campaigns} />
+        <Dashboard 
+          families={families} 
+          campaigns={campaigns} 
+          settings={settings}
+        />
       )}
       {currentView === 'FAMILIES' && (
         <FamilyList 

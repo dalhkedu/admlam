@@ -1,16 +1,26 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CampaignType, CampaignItem, PackageItem, Family } from "../types";
+import { StorageService } from "./storage";
 
 // Helper para inicializar a IA dinamicamente
 const getAIClient = async () => {
-  // A chave deve vir exclusivamente do ambiente conforme diretrizes de segurança.
-  const apiKey = process.env.API_KEY;
-
-  if (!apiKey) {
-    throw new Error("Chave da API Google Gemini não configurada no ambiente (process.env.API_KEY).");
+  // 1. Tenta buscar a chave nas configurações do usuário no Banco de Dados
+  try {
+      const settings = await StorageService.getSettings();
+      if (settings.googleApiKey && settings.googleApiKey.trim() !== "") {
+          return new GoogleGenAI({ apiKey: settings.googleApiKey });
+      }
+  } catch (e) {
+      console.warn("Não foi possível ler as configurações de IA do usuário.", e);
   }
 
-  return new GoogleGenAI({ apiKey });
+  // 2. Fallback para a chave de ambiente (se existir, útil para demonstração)
+  const envKey = process.env.API_KEY;
+  if (envKey) {
+    return new GoogleGenAI({ apiKey: envKey });
+  }
+
+  throw new Error("Chave da API Google Gemini não configurada. Acesse Configurações > Integrações para adicionar sua chave.");
 };
 
 export const generateCampaignDescription = async (
@@ -42,7 +52,7 @@ export const generateCampaignDescription = async (
     return response.text || "Não foi possível gerar a descrição.";
   } catch (error) {
     console.error("Error generating description:", error);
-    return "Erro ao conectar com a IA. Verifique a Chave de API.";
+    return "Erro ao conectar com a IA. Verifique sua Chave de API nas Configurações.";
   }
 };
 

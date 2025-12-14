@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Family, Child, ClothingSize, FamilyHistoryEntry } from '../types';
 import { parseFamilyData } from '../services/geminiService';
 import { StorageService } from '../services/storage';
-import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, User, X, Users as UsersIcon, Wand2, Loader2, Sparkles, Search, MapPin, Baby, CreditCard, GraduationCap, AlertCircle, Calendar, FileText, History, Clock, Send, Ban, RefreshCw, AlertTriangle } from 'lucide-react';
+import { maskCPF, maskPhone, maskCEP, sanitizeInput } from '../utils/masks';
+import { Plus, Edit2, Trash2, ChevronDown, ChevronUp, User, X, Users as UsersIcon, Wand2, Loader2, Sparkles, Search, MapPin, Baby, CreditCard, GraduationCap, AlertCircle, Calendar, FileText, History, Clock, Send, Ban, RefreshCw, AlertTriangle, Home } from 'lucide-react';
 
 interface FamilyListProps {
   families: Family[];
@@ -137,7 +138,8 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
   const filteredFamilies = families.filter(family => {
     const matchesSearch = family.responsibleName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (family.cardId && family.cardId.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    family.address.toLowerCase().includes(searchQuery.toLowerCase());
+    family.address.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    (family.cpf && family.cpf.includes(searchQuery));
     
     const matchesStatus = statusFilter === 'ALL' || family.status === statusFilter;
 
@@ -198,10 +200,10 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
       
       if (!data.erro) {
         setAddressDetails({
-          logradouro: data.logradouro,
-          bairro: data.bairro,
-          localidade: data.localidade,
-          uf: data.uf
+          logradouro: sanitizeInput(data.logradouro),
+          bairro: sanitizeInput(data.bairro),
+          localidade: sanitizeInput(data.localidade),
+          uf: sanitizeInput(data.uf)
         });
       } else {
         alert("CEP não encontrado.");
@@ -271,7 +273,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
           id: crypto.randomUUID(),
           date: new Date().toISOString(),
           type: newHistoryType,
-          description: newHistoryNote,
+          description: sanitizeInput(newHistoryNote),
           author: 'Manual'
       };
 
@@ -298,7 +300,10 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
 
   const updateChild = (index: number, field: keyof Child, value: any) => {
     const newChildren = [...formData.children];
-    newChildren[index] = { ...newChildren[index], [field]: value };
+    // Sanitize text fields
+    const safeValue = typeof value === 'string' ? sanitizeInput(value) : value;
+    
+    newChildren[index] = { ...newChildren[index], [field]: safeValue };
     
     // Auto calculate age if birthDate changes
     if (field === 'birthDate' && value) {
@@ -331,32 +336,32 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
               cardId: `${String(nextId).padStart(3, '0')}/${year}`,
               registrationDate: today,
               lastReviewDate: today,
-              responsibleName: result.responsibleName || '',
-              rg: result.rg || '',
-              cpf: result.cpf || '',
+              responsibleName: sanitizeInput(result.responsibleName || ''),
+              rg: sanitizeInput(result.rg || ''),
+              cpf: result.cpf ? maskCPF(result.cpf) : '',
               responsibleBirthDate: result.responsibleBirthDate || '',
               maritalStatus: (result.maritalStatus as any) || 'Solteira(o)',
-              spouseName: result.spouseName || '',
-              address: result.address || '',
-              phone: result.phone || '',
-              email: result.email || '',
+              spouseName: sanitizeInput(result.spouseName || ''),
+              address: sanitizeInput(result.address || ''),
+              phone: result.phone ? maskPhone(result.phone) : '',
+              email: sanitizeInput(result.email || ''),
               numberOfAdults: result.numberOfAdults || 1,
               isPregnant: result.isPregnant || false,
               pregnancyDueDate: result.pregnancyDueDate || '',
               children: (result.children || []).map((c: any) => ({
                   ...emptyChild,
                   id: crypto.randomUUID(),
-                  name: c.name || '',
+                  name: sanitizeInput(c.name || ''),
                   age: c.age || 0,
                   birthDate: c.birthDate || '',
                   gender: c.gender || 'M',
-                  clothingSize: c.clothingSize || '',
+                  clothingSize: sanitizeInput(c.clothingSize || ''),
                   shoeSize: c.shoeSize || 0,
                   isStudent: c.isStudent !== undefined ? c.isStudent : true,
-                  schoolYear: c.schoolYear || '',
+                  schoolYear: sanitizeInput(c.schoolYear || ''),
                   hasDisability: c.hasDisability || false,
-                  disabilityDetails: c.disabilityDetails || '',
-                  notes: c.notes || ''
+                  disabilityDetails: sanitizeInput(c.disabilityDetails || ''),
+                  notes: sanitizeInput(c.notes || '')
               })),
               history: [
                 { id: crypto.randomUUID(), date: today, type: 'Cadastro', description: 'Família registrada via IA.', author: 'Sistema' }
@@ -425,7 +430,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
           <input 
             type="text" 
-            placeholder="Buscar por nome, carteirinha ou endereço..." 
+            placeholder="Buscar por nome, CPF ou endereço..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none text-sm transition-all text-slate-900 bg-white"
@@ -620,54 +625,11 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
         )}
       </div>
 
-       {/* AI Input Modal */}
-       {isAiModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg">
-             <div className="p-6 border-b border-slate-100 flex justify-between items-center">
-               <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-                 <Sparkles className="text-purple-600" /> 
-                 Cadastro Rápido com IA
-               </h2>
-               <button onClick={() => setIsAiModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                 <X size={24} />
-               </button>
-             </div>
-             <div className="p-6 space-y-4">
-               <p className="text-sm text-slate-600">
-                 Descreva a família ou cole o texto do formulário. A IA preencherá campos como RG, CPF, Cônjuge e detalhes das crianças.
-               </p>
-               <textarea 
-                 value={aiInputText}
-                 onChange={e => setAiInputText(e.target.value)}
-                 className="w-full h-32 border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-purple-500 outline-none text-slate-900 bg-white"
-                 placeholder="Ex: Responsável Maria da Silva, CPF 123.456.789-00, RG 1234567. Casada com João. Tem um filho Pedro, nascido em 20/05/2015, autista, calça 36..."
-               />
-               <div className="flex justify-end gap-3">
-                 <button 
-                   onClick={() => setIsAiModalOpen(false)}
-                   className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg"
-                 >
-                   Cancelar
-                 </button>
-                 <button 
-                   onClick={handleAiProcess}
-                   disabled={isAiProcessing || !aiInputText.trim()}
-                   className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg flex items-center gap-2 disabled:opacity-50"
-                 >
-                   {isAiProcessing ? <Loader2 size={18} className="animate-spin" /> : <Wand2 size={18} />}
-                   Processar
-                 </button>
-               </div>
-             </div>
-          </div>
-        </div>
-      )}
-
       {/* Main Family Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+            {/* Header ... */}
             <div className="p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10 shrink-0">
               <h2 className="text-xl font-bold text-slate-800">{editingFamily ? 'Editar Família' : 'Nova Família'}</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
@@ -702,42 +664,18 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
             <div className="overflow-y-auto flex-1 p-6">
                 {activeTab === 'DATA' ? (
                      <form onSubmit={handleSave} className="space-y-8" id="familyForm">
-              
-                     {/* Seção 1: Dados Pessoais do Responsável */}
-                     <section>
-                        <h3 className="text-base font-semibold text-emerald-800 bg-emerald-50 p-2 rounded mb-4 flex items-center gap-2">
+                       <section>
+                         <h3 className="text-base font-semibold text-emerald-800 bg-emerald-50 p-2 rounded mb-4 flex items-center gap-2">
                            <User size={18}/> 1. Responsável / Assistido
                         </h3>
-                        
-                        {/* Aviso de Renovação */}
-                        {editingFamily && (
-                             <div className="mb-4 bg-slate-50 p-3 rounded-lg border border-slate-200 flex items-center justify-between">
-                                 <div>
-                                     <p className="text-sm font-medium text-slate-700">Última Revisão: {new Date(formData.lastReviewDate || formData.registrationDate).toLocaleDateString()}</p>
-                                     <p className="text-xs text-slate-500">Expira em: {getExpirationDate(formData).toLocaleDateString()}</p>
-                                 </div>
-                                 <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded border border-emerald-200 hover:bg-emerald-50 transition-colors">
-                                     <input 
-                                        type="checkbox"
-                                        checked={shouldRenewRegistration}
-                                        onChange={e => setShouldRenewRegistration(e.target.checked)}
-                                        className="w-4 h-4 text-emerald-600 rounded"
-                                     />
-                                     <div className="flex items-center gap-1 text-sm font-bold text-emerald-700">
-                                         <RefreshCw size={14} /> Renovar Validade
-                                     </div>
-                                 </label>
-                             </div>
-                        )}
-
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="md:col-span-3 space-y-1">
                                <label className="text-xs font-medium text-slate-600">Nome Completo</label>
                                <input 
                                    required
                                    type="text" 
                                    value={formData.responsibleName} 
-                                   onChange={e => setFormData({...formData, responsibleName: e.target.value})}
+                                   onChange={e => setFormData({...formData, responsibleName: sanitizeInput(e.target.value)})}
                                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                                />
                            </div>
@@ -757,324 +695,360 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                                    <option value="Inativo">Inativo</option>
                                </select>
                            </div>
-
                            <div className="space-y-1">
-                               <label className="text-xs font-medium text-slate-600">Nº Carteirinha</label>
+                               <label className="text-xs font-medium text-slate-600">CPF</label>
                                <input 
                                    type="text" 
-                                   value={formData.cardId} 
-                                   onChange={e => setFormData({...formData, cardId: e.target.value})}
-                                   className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-slate-900 bg-white"
-                                   placeholder="000/00"
-                               />
-                           </div>
-                           <div className="space-y-1">
-                               <label className="text-xs font-medium text-slate-600">Data Nasc.</label>
-                               <input 
-                                   type="date" 
-                                   value={formData.responsibleBirthDate} 
-                                   onChange={e => setFormData({...formData, responsibleBirthDate: e.target.value})}
+                                   maxLength={14}
+                                   value={formData.cpf || ''}
+                                   onChange={e => setFormData({...formData, cpf: maskCPF(e.target.value)})}
                                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
+                                   placeholder="000.000.000-00"
                                />
                            </div>
                            <div className="space-y-1">
                                <label className="text-xs font-medium text-slate-600">RG</label>
                                <input 
                                    type="text" 
-                                   value={formData.rg} 
-                                   onChange={e => setFormData({...formData, rg: e.target.value})}
+                                   maxLength={20}
+                                   value={formData.rg || ''}
+                                   onChange={e => setFormData({...formData, rg: sanitizeInput(e.target.value)})}
                                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
-                                   placeholder="00.000.000-0"
                                />
                            </div>
                            <div className="space-y-1">
-                               <label className="text-xs font-medium text-slate-600">CPF</label>
+                               <label className="text-xs font-medium text-slate-600">Data de Nascimento</label>
                                <input 
-                                   type="text" 
-                                   value={formData.cpf} 
-                                   onChange={e => setFormData({...formData, cpf: e.target.value})}
+                                   type="date" 
+                                   value={formData.responsibleBirthDate || ''}
+                                   onChange={e => setFormData({...formData, responsibleBirthDate: e.target.value})}
                                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
-                                   placeholder="000.000.000-00"
                                />
                            </div>
                            <div className="space-y-1">
                                <label className="text-xs font-medium text-slate-600">Estado Civil</label>
                                <select 
-                                   value={formData.maritalStatus} 
+                                   value={formData.maritalStatus}
                                    onChange={e => setFormData({...formData, maritalStatus: e.target.value as any})}
-                                   className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white outline-none text-slate-900"
+                                   className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white text-slate-900 outline-none"
                                >
                                    <option value="Solteira(o)">Solteira(o)</option>
                                    <option value="Casada(o)">Casada(o)</option>
-                                   <option value="União Estável">União Estável</option>
-                                   <option value="Divorciada(o)">Divorciada(o)</option>
                                    <option value="Viúva(o)">Viúva(o)</option>
+                                   <option value="Divorciada(o)">Divorciada(o)</option>
+                                   <option value="União Estável">União Estável</option>
                                    <option value="Outro">Outro</option>
                                </select>
                            </div>
-                            {showSpouseField && (
-                               <div className="md:col-span-2 space-y-1">
+                           
+                           {showSpouseField && (
+                                <div className="md:col-span-2 space-y-1">
                                    <label className="text-xs font-medium text-slate-600">Nome do Cônjuge</label>
                                    <input 
                                        type="text" 
-                                       value={formData.spouseName} 
-                                       onChange={e => setFormData({...formData, spouseName: e.target.value})}
+                                       value={formData.spouseName || ''} 
+                                       onChange={e => setFormData({...formData, spouseName: sanitizeInput(e.target.value)})}
                                        className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                                    />
                                </div>
-                            )}
-                        </div>
-                     </section>
-       
-                     {/* Seção 2: Contato e Endereço */}
-                     <section>
-                        <h3 className="text-base font-semibold text-emerald-800 bg-emerald-50 p-2 rounded mb-4 flex items-center gap-2">
-                           <MapPin size={18}/> 2. Endereço e Contato
-                        </h3>
-                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="space-y-1">
-                               <label className="text-xs font-medium text-slate-600">Telefone</label>
+                           )}
+                           
+                           <div className="space-y-1">
+                               <label className="text-xs font-medium text-slate-600">Total Adultos na Casa</label>
+                               <input 
+                                   type="number"
+                                   min="1"
+                                   value={formData.numberOfAdults}
+                                   onChange={e => setFormData({...formData, numberOfAdults: parseInt(e.target.value) || 1})}
+                                   className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
+                               />
+                           </div>
+                         </div>
+                       </section>
+                       
+                       <section>
+                          <h3 className="text-base font-semibold text-emerald-800 bg-emerald-50 p-2 rounded mb-4 flex items-center gap-2">
+                             <MapPin size={18}/> 2. Endereço e Contato
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                             <div className="space-y-1">
+                               <label className="text-xs font-medium text-slate-600">Telefone / WhatsApp</label>
                                <input 
                                    required
                                    type="text" 
+                                   maxLength={15}
                                    value={formData.phone} 
-                                   onChange={e => setFormData({...formData, phone: e.target.value})}
+                                   onChange={e => setFormData({...formData, phone: maskPhone(e.target.value)})}
                                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
+                                   placeholder="(00) 00000-0000"
                                />
-                           </div>
-                            <div className="space-y-1">
-                               <label className="text-xs font-medium text-slate-600">E-mail (Opcional)</label>
+                             </div>
+                             <div className="md:col-span-2 space-y-1">
+                               <label className="text-xs font-medium text-slate-600">Email (Opcional)</label>
                                <input 
                                    type="email" 
                                    value={formData.email || ''} 
-                                   onChange={e => setFormData({...formData, email: e.target.value})}
-                                   className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
-                                   placeholder="exemplo@email.com"
-                               />
-                           </div>
-                           <div className="space-y-1">
-                               <label className="text-xs font-medium text-slate-600">Pessoas na Casa (Adultos)</label>
-                               <input 
-                                   type="number" 
-                                   min="1"
-                                   value={formData.numberOfAdults} 
-                                   onChange={e => setFormData({...formData, numberOfAdults: parseInt(e.target.value) || 0})}
+                                   onChange={e => setFormData({...formData, email: sanitizeInput(e.target.value)})}
                                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                                />
-                           </div>
-                            
-                            {/* CEP Helper */}
-                            <div className="space-y-1">
-                             <label className="text-xs font-medium text-slate-600">CEP (Busca Auto)</label>
-                             <div className="relative">
-                               <input 
-                                 type="text" 
-                                 placeholder="00000-000"
-                                 value={cep} 
-                                 onChange={e => setCep(e.target.value)}
-                                 onBlur={handleCepBlur}
-                                 className="w-full border border-slate-300 rounded px-2 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
-                               />
-                               <div className="absolute right-2 top-2.5 text-slate-400">
-                                 {isLoadingCep ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
-                               </div>
                              </div>
-                           </div>
-                           
-                           <div className="md:col-span-4 space-y-1">
-                               <label className="text-xs font-medium text-slate-600">Endereço Completo</label>
+
+                             <div className="col-span-full border-t border-dashed border-slate-200 my-2"></div>
+                             
+                             {/* Address Inputs (CEP, Street, etc) */}
+                             <div className="col-span-1">
+                                <label className="text-xs font-medium text-slate-600 block mb-1">CEP</label>
+                                <div className="relative">
+                                    <input 
+                                    type="text" 
+                                    placeholder="00000-000"
+                                    maxLength={9}
+                                    value={cep} 
+                                    onChange={e => setCep(maskCEP(e.target.value))}
+                                    onBlur={handleCepBlur}
+                                    className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
+                                    />
+                                    <div className="absolute right-2 top-2 text-slate-400">
+                                    {isLoadingCep ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="col-span-1 md:col-span-2">
+                                <label className="text-xs font-medium text-slate-600 block mb-1">Rua / Logradouro</label>
+                                <input 
+                                    readOnly
+                                    tabIndex={-1}
+                                    placeholder="Automático..."
+                                    value={addressDetails.logradouro} 
+                                    className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
+                                />
+                            </div>
+                            <div className="col-span-1">
+                                <label className="text-xs font-medium text-slate-600 block mb-1">Número</label>
+                                <input 
+                                    type="text"
+                                    value={addressNumber} 
+                                    onChange={e => setAddressNumber(sanitizeInput(e.target.value))}
+                                    className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
+                                />
+                            </div>
+                            <div className="col-span-1">
+                                <label className="text-xs font-medium text-slate-600 block mb-1">Bairro</label>
+                                <input 
+                                    readOnly
+                                    tabIndex={-1}
+                                    value={addressDetails.bairro} 
+                                    className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
+                                />
+                            </div>
+                            <div className="col-span-1">
+                                <label className="text-xs font-medium text-slate-600 block mb-1">Cidade/UF</label>
+                                <input 
+                                    readOnly
+                                    tabIndex={-1}
+                                    value={addressDetails.localidade ? `${addressDetails.localidade}/${addressDetails.uf}` : ''} 
+                                    className="w-full border border-slate-200 bg-slate-100 rounded px-2 py-1.5 text-sm text-slate-700 font-medium outline-none"
+                                />
+                            </div>
+                            <div className="col-span-1 md:col-span-2">
+                                <label className="text-xs font-medium text-slate-600 block mb-1">Complemento</label>
+                                <input 
+                                    type="text"
+                                    value={addressComplement} 
+                                    onChange={e => setAddressComplement(sanitizeInput(e.target.value))}
+                                    className="w-full border border-slate-300 rounded px-2 py-1.5 text-sm outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
+                                />
+                            </div>
+
+                             <div className="md:col-span-4 space-y-1">
+                               <label className="text-xs font-medium text-slate-600">Endereço Completo (Resultado Final)</label>
                                <input 
                                    required
                                    type="text" 
                                    value={formData.address} 
-                                   onChange={e => setFormData({...formData, address: e.target.value})}
+                                   onChange={e => setFormData({...formData, address: sanitizeInput(e.target.value)})}
                                    className="w-full border border-slate-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
-                                   placeholder="Rua, Número, Bairro, Cidade (use o CEP para preencher parte)"
                                />
-                               {addressDetails.logradouro && (
-                                   <p className="text-[10px] text-slate-400">
-                                       Sugestão do CEP: {addressDetails.logradouro}, {addressDetails.bairro} - {addressDetails.localidade}/{addressDetails.uf}
-                                   </p>
-                               )}
                            </div>
-                         </div>
-                     </section>
-       
-                     {/* Seção 3: Gestante */}
-                     <div className="bg-pink-50 p-4 rounded-lg border border-pink-100 flex items-center justify-between">
-                       <div className="flex items-center gap-3">
-                           <div className="p-2 bg-pink-100 rounded-full text-pink-600">
-                               <Baby size={20} />
-                           </div>
-                           <div>
-                               <span className="font-semibold text-slate-700 block text-sm">Gestante na Família?</span>
-                           </div>
-                       </div>
-                       <div className="flex items-center gap-4">
-                           <label className="flex items-center gap-2 cursor-pointer">
-                               <input
-                                   type="checkbox"
-                                   checked={formData.isPregnant || false}
-                                   onChange={e => setFormData({...formData, isPregnant: e.target.checked})}
-                                   className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
-                               />
-                               <span className="text-sm font-medium text-slate-700">Sim</span>
-                           </label>
-                           {formData.isPregnant && (
-                               <div className="flex flex-col">
-                                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Previsão Parto</label>
-                                   <input
-                                       type="date"
-                                       required={formData.isPregnant}
-                                       value={formData.pregnancyDueDate || ''}
-                                       onChange={e => setFormData({...formData, pregnancyDueDate: e.target.value})}
-                                       className="border border-pink-200 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-pink-500 text-slate-900 bg-white shadow-sm"
-                                   />
-                               </div>
-                           )}
-                       </div>
-                     </div>
-       
-                     {/* Seção 4: Crianças */}
-                     <section>
-                        <div className="flex justify-between items-center mb-4">
-                           <h3 className="text-base font-semibold text-emerald-800 bg-emerald-50 p-2 rounded flex items-center gap-2">
-                               <UsersIcon size={18}/> 3. Filhos / Crianças
+                          </div>
+                       </section>
+                       
+                       <section>
+                           <h3 className="text-base font-semibold text-emerald-800 bg-emerald-50 p-2 rounded mb-4 flex items-center gap-2">
+                             <Baby size={18}/> 3. Filhos e Gestação
                            </h3>
-                           <button type="button" onClick={addChild} className="text-sm text-emerald-600 font-medium hover:underline flex items-center gap-1">
-                               <Plus size={14} /> Adicionar Criança
-                           </button>
-                        </div>
-                        
-                        <div className="space-y-4">
-                         {formData.children.map((child, index) => (
-                           <div key={child.id} className="bg-slate-50 p-4 rounded-lg border border-slate-200 relative">
-                              <button 
-                               type="button" 
-                               onClick={() => removeChild(child.id)}
-                               className="absolute top-2 right-2 text-slate-400 hover:text-red-500"
-                             >
-                               <X size={16} />
-                             </button>
-                             
-                             <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-                               <div className="col-span-2 md:col-span-3">
-                                  <label className="block text-xs font-medium text-slate-500 mb-1">Nome da Criança</label>
-                                  <input 
-                                   placeholder="Nome"
-                                   className="w-full text-sm border-slate-300 rounded px-2 py-1.5 text-slate-900 bg-white"
-                                   value={child.name}
-                                   onChange={(e) => updateChild(index, 'name', e.target.value)}
-                                  />
-                               </div>
-                               <div className="col-span-1 md:col-span-2">
-                                  <label className="block text-xs font-medium text-slate-500 mb-1">Data Nasc.</label>
-                                  <input 
-                                   type="date"
-                                   className="w-full text-sm border-slate-300 rounded px-2 py-1.5 text-slate-900 bg-white"
-                                   value={child.birthDate || ''}
-                                   onChange={(e) => updateChild(index, 'birthDate', e.target.value)}
-                                  />
-                               </div>
-                               <div className="col-span-1">
-                                 <label className="block text-xs font-medium text-slate-500 mb-1">Idade (Calc)</label>
-                                 <input 
-                                   readOnly
-                                   value={child.age}
-                                   className="w-full text-sm bg-slate-100 border-slate-200 rounded px-2 py-1.5 text-center text-slate-700 font-medium"
-                                 />
-                               </div>
-                               
-                               <div className="col-span-1 md:col-span-1">
-                                  <label className="block text-xs font-medium text-slate-500 mb-1">Sexo</label>
-                                  <select 
-                                   className="w-full text-sm border-slate-300 rounded px-2 py-1.5 bg-white text-slate-900"
-                                   value={child.gender}
-                                   onChange={(e) => updateChild(index, 'gender', e.target.value)}
-                                  >
-                                   <option value="M">M</option>
-                                   <option value="F">F</option>
-                                  </select>
-                               </div>
-                               <div className="col-span-1 md:col-span-1">
-                                  <label className="block text-xs font-medium text-slate-500 mb-1">Roupa</label>
-                                  <select 
-                                   className="w-full text-sm border-slate-300 rounded px-2 py-1.5 bg-white text-slate-900"
-                                   value={child.clothingSize}
-                                   onChange={(e) => updateChild(index, 'clothingSize', e.target.value)}
-                                  >
-                                   <option value="">-</option>
-                                   {Object.values(ClothingSize).map(s => <option key={s} value={s}>{s}</option>)}
-                                  </select>
-                               </div>
-                               <div className="col-span-1 md:col-span-1">
-                                  <label className="block text-xs font-medium text-slate-500 mb-1">Calçado</label>
-                                  <input 
-                                   type="number"
-                                   className="w-full text-sm border-slate-300 rounded px-2 py-1.5 text-slate-900 bg-white"
-                                   value={child.shoeSize || ''}
-                                   onChange={(e) => updateChild(index, 'shoeSize', parseInt(e.target.value))}
-                                  />
-                               </div>
-                               
-                               <div className="col-span-2 md:col-span-3 flex items-end gap-3 pb-2">
-                                    <label className="flex items-center gap-2 cursor-pointer">
+                           
+                           <div className="mb-4 p-3 border border-pink-200 bg-pink-50 rounded-lg flex items-center justify-between">
+                               <div>
+                                   <label className="text-sm font-bold text-slate-700 flex items-center gap-2">
                                        <input 
                                            type="checkbox"
-                                           checked={child.isStudent}
-                                           onChange={e => updateChild(index, 'isStudent', e.target.checked)}
-                                           className="w-4 h-4 text-emerald-600 rounded"
+                                           checked={formData.isPregnant}
+                                           onChange={e => setFormData({...formData, isPregnant: e.target.checked})}
+                                           className="w-4 h-4 text-pink-600 rounded focus:ring-pink-500"
                                        />
-                                       <span className="text-sm text-slate-700">Estudante?</span>
-                                    </label>
-                                    {child.isStudent && (
+                                       Há gestante na família?
+                                   </label>
+                                   <p className="text-xs text-slate-500 ml-6">Habilita acompanhamento específico.</p>
+                               </div>
+                               {formData.isPregnant && (
+                                   <div className="flex items-center gap-2">
+                                       <span className="text-sm text-slate-600">Data Prevista do Parto:</span>
                                        <input 
-                                           placeholder="Ano Letivo (ex: 5º Ano)"
-                                           className="flex-1 text-sm border-slate-300 rounded px-2 py-1.5 text-slate-900 bg-white"
-                                           value={child.schoolYear || ''}
-                                           onChange={e => updateChild(index, 'schoolYear', e.target.value)}
+                                           type="date"
+                                           value={formData.pregnancyDueDate || ''}
+                                           onChange={e => setFormData({...formData, pregnancyDueDate: e.target.value})}
+                                           className="border border-slate-300 rounded px-2 py-1 text-sm outline-none text-slate-900 bg-white"
                                        />
-                                    )}
-                               </div>
-       
-                               <div className="col-span-2 md:col-span-6 bg-orange-50 p-2 rounded border border-orange-100">
-                                    <div className="flex items-center gap-3 mb-2">
-                                       <label className="flex items-center gap-2 cursor-pointer">
-                                           <input 
-                                               type="checkbox"
-                                               checked={child.hasDisability}
-                                               onChange={e => updateChild(index, 'hasDisability', e.target.checked)}
-                                               className="w-4 h-4 text-orange-600 rounded focus:ring-orange-500"
-                                           />
-                                           <span className="text-sm font-medium text-orange-800">Possui Deficiência?</span>
-                                       </label>
-                                    </div>
-                                    {child.hasDisability && (
-                                       <input 
-                                           placeholder="Qual deficiência? (Detalhes)"
-                                           className="w-full text-sm border-orange-200 rounded px-2 py-1.5 focus:ring-1 focus:ring-orange-500 outline-none text-slate-900 bg-white"
-                                           value={child.disabilityDetails || ''}
-                                           onChange={e => updateChild(index, 'disabilityDetails', e.target.value)}
-                                       />
-                                    )}
-                               </div>
-       
-                                <div className="col-span-2 md:col-span-6">
-                                  <label className="block text-xs font-medium text-slate-500 mb-1">Observações</label>
-                                  <textarea 
-                                   rows={1}
-                                   placeholder="Observações ou notas específicas..."
-                                   className="w-full text-sm border border-slate-300 rounded px-2 py-1.5 text-slate-900 bg-white outline-none focus:ring-1 focus:ring-emerald-500"
-                                   value={child.notes || ''}
-                                   onChange={(e) => updateChild(index, 'notes', e.target.value)}
-                                  />
-                               </div>
-                             </div>
+                                   </div>
+                               )}
                            </div>
-                         ))}
-                        </div>
-                     </section>
-                   </form>
+                           
+                           <div className="space-y-4">
+                               {formData.children.map((child, index) => (
+                                   <div key={child.id} className="bg-white border border-slate-200 rounded-lg p-4 relative">
+                                       <button 
+                                           type="button"
+                                           onClick={() => removeChild(child.id)}
+                                           className="absolute top-2 right-2 text-slate-400 hover:text-red-500 p-1"
+                                       >
+                                           <Trash2 size={16} />
+                                       </button>
+                                       
+                                       <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+                                           <div className="md:col-span-2">
+                                               <input 
+                                                   type="text" 
+                                                   placeholder="Nome da Criança"
+                                                   className="w-full border-b border-slate-300 px-1 py-1 text-sm outline-none focus:border-emerald-500 font-medium text-slate-900 bg-transparent"
+                                                   value={child.name}
+                                                   onChange={e => updateChild(index, 'name', e.target.value)}
+                                               />
+                                           </div>
+                                            <div>
+                                               <input 
+                                                   type="date" 
+                                                   className="w-full border-b border-slate-300 px-1 py-1 text-sm outline-none focus:border-emerald-500 text-slate-900 bg-transparent"
+                                                   value={child.birthDate || ''}
+                                                   onChange={e => updateChild(index, 'birthDate', e.target.value)}
+                                               />
+                                           </div>
+                                           <div className="flex gap-2">
+                                               <input 
+                                                   type="number" 
+                                                   placeholder="Idade"
+                                                   readOnly
+                                                   className="w-16 bg-slate-50 border-b border-slate-300 px-1 py-1 text-sm outline-none text-slate-500 text-center"
+                                                   value={child.age}
+                                               />
+                                               <select
+                                                   className="flex-1 border-b border-slate-300 px-1 py-1 text-sm outline-none focus:border-emerald-500 bg-transparent text-slate-900"
+                                                   value={child.gender}
+                                                   onChange={e => updateChild(index, 'gender', e.target.value)}
+                                               >
+                                                   <option value="M">Masculino</option>
+                                                   <option value="F">Feminino</option>
+                                                   <option value="Outro">Outro</option>
+                                               </select>
+                                           </div>
+                                       </div>
+                                       
+                                       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                                           <div>
+                                               <label className="text-[10px] text-slate-500 uppercase font-bold">Roupa</label>
+                                                <select
+                                                   className="w-full border border-slate-200 rounded px-2 py-1 text-sm outline-none bg-white text-slate-900"
+                                                   value={child.clothingSize}
+                                                   onChange={e => updateChild(index, 'clothingSize', e.target.value)}
+                                               >
+                                                   {Object.values(ClothingSize).map(s => <option key={s} value={s}>{s}</option>)}
+                                               </select>
+                                           </div>
+                                           <div>
+                                               <label className="text-[10px] text-slate-500 uppercase font-bold">Sapato</label>
+                                                <input
+                                                   type="number"
+                                                   className="w-full border border-slate-200 rounded px-2 py-1 text-sm outline-none text-slate-900 bg-white"
+                                                   value={child.shoeSize}
+                                                   onChange={e => updateChild(index, 'shoeSize', e.target.value)}
+                                               />
+                                           </div>
+                                           <div className="col-span-2 md:col-span-3 flex flex-col justify-end">
+                                               <div className="flex gap-4">
+                                                   <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                                                       <input 
+                                                           type="checkbox"
+                                                           checked={child.isStudent}
+                                                           onChange={e => updateChild(index, 'isStudent', e.target.checked)}
+                                                           className="rounded text-emerald-600 focus:ring-emerald-500"
+                                                       />
+                                                       Estuda?
+                                                   </label>
+                                                   <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                                                       <input 
+                                                           type="checkbox"
+                                                           checked={child.hasDisability}
+                                                           onChange={e => updateChild(index, 'hasDisability', e.target.checked)}
+                                                           className="rounded text-orange-500 focus:ring-orange-500"
+                                                       />
+                                                       PCD?
+                                                   </label>
+                                               </div>
+                                           </div>
+                                       </div>
+                                       
+                                       {(child.isStudent || child.hasDisability) && (
+                                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 bg-slate-50 p-3 rounded">
+                                               {child.isStudent && (
+                                                   <div>
+                                                       <label className="text-[10px] text-emerald-600 font-bold uppercase">Ano Escolar / Série</label>
+                                                        <input 
+                                                            type="text"
+                                                            placeholder="Ex: 5º Ano"
+                                                            className="w-full border border-emerald-200 rounded px-2 py-1 text-sm outline-none text-slate-900 bg-white"
+                                                            value={child.schoolYear}
+                                                            onChange={e => updateChild(index, 'schoolYear', e.target.value)}
+                                                        />
+                                                   </div>
+                                               )}
+                                               {child.hasDisability && (
+                                                   <div>
+                                                       <label className="text-[10px] text-orange-600 font-bold uppercase">Detalhes da Deficiência</label>
+                                                        <input 
+                                                            type="text"
+                                                            placeholder="Qual a necessidade?"
+                                                            className="w-full border border-orange-200 rounded px-2 py-1 text-sm outline-none text-slate-900 bg-white"
+                                                            value={child.disabilityDetails}
+                                                            onChange={e => updateChild(index, 'disabilityDetails', e.target.value)}
+                                                        />
+                                                   </div>
+                                               )}
+                                           </div>
+                                       )}
+
+                                       <div className="mt-3">
+                                            <input 
+                                                type="text"
+                                                placeholder="Observações adicionais sobre a criança..."
+                                                className="w-full border-b border-slate-200 px-1 py-1 text-sm outline-none focus:border-indigo-400 bg-transparent text-slate-600 placeholder-slate-400"
+                                                value={child.notes}
+                                                onChange={e => updateChild(index, 'notes', e.target.value)}
+                                            />
+                                       </div>
+                                   </div>
+                               ))}
+                               
+                               <button 
+                                   type="button"
+                                   onClick={addChild}
+                                   className="w-full py-3 border-2 border-dashed border-slate-300 rounded-lg text-slate-500 hover:border-emerald-500 hover:text-emerald-600 transition-colors flex items-center justify-center gap-2 font-medium"
+                               >
+                                   <Plus size={20} />
+                                   Adicionar Criança
+                               </button>
+                           </div>
+                       </section>
+                     </form>
                 ) : (
                     <div className="space-y-6">
                         {/* Add History Form */}
@@ -1091,6 +1065,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                                         className="w-full md:w-1/2 border border-slate-300 rounded px-3 py-2 text-sm bg-white text-slate-900"
                                      >
                                          <option value="Ocorrência">Ocorrência</option>
+                                         <option value="Visita">Visita Domiciliar</option>
                                          <option value="Atualização">Atualização de Dados</option>
                                          <option value="Suspensão">Suspensão</option>
                                          <option value="Reativação">Reativação</option>
@@ -1102,7 +1077,7 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                                     <textarea 
                                         rows={3}
                                         value={newHistoryNote}
-                                        onChange={(e) => setNewHistoryNote(e.target.value)}
+                                        onChange={(e) => setNewHistoryNote(sanitizeInput(e.target.value))}
                                         placeholder="Descreva o que aconteceu ou a alteração feita..."
                                         className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 outline-none text-slate-900 bg-white"
                                     />
@@ -1129,15 +1104,19 @@ export const FamilyList: React.FC<FamilyListProps> = ({ families, onAddFamily, o
                                             entry.type === 'Cadastro' ? 'bg-emerald-500' :
                                             entry.type === 'Suspensão' ? 'bg-red-500' :
                                             entry.type === 'Ocorrência' ? 'bg-amber-500' :
+                                            entry.type === 'Visita' ? 'bg-purple-500' :
                                             'bg-blue-500'
                                         }`}></div>
                                         <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between mb-1">
-                                            <h4 className="font-semibold text-slate-800 text-sm">{entry.type}</h4>
+                                            <h4 className="font-semibold text-slate-800 text-sm flex items-center gap-2">
+                                                {entry.type === 'Visita' && <Home size={14} className="text-purple-600" />}
+                                                {entry.type}
+                                            </h4>
                                             <span className="text-xs text-slate-500 flex items-center gap-1">
                                                 <Clock size={12} /> {new Date(entry.date).toLocaleDateString()} às {new Date(entry.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                             </span>
                                         </div>
-                                        <div className="bg-white p-3 rounded-lg border border-slate-100 shadow-sm text-sm text-slate-600">
+                                        <div className={`bg-white p-3 rounded-lg border shadow-sm text-sm text-slate-600 ${entry.type === 'Visita' ? 'border-purple-200 bg-purple-50/50' : 'border-slate-100'}`}>
                                             {entry.description}
                                             {entry.author && (
                                                 <div className="mt-2 text-xs text-slate-400 border-t border-slate-50 pt-1">
